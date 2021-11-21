@@ -1,6 +1,9 @@
 import os
 
+import numpy as np
+import pandas as pd
 import matplotlib.pyplot as plt
+from nltk.metrics import ConfusionMatrix
 
 from taggers import HMMTagger, BaselineTagger
 from utils import *
@@ -33,6 +36,14 @@ test_corpus = preprocess_corpus(
 gold_dev = preprocess_corpus(gold_dev, preprocess_remove_start_stop_tokens)
 gold_test = preprocess_corpus(gold_test, preprocess_remove_start_stop_tokens)
 
+
+def print_result(result, name=""):
+    print("==================")
+    print(name)
+    print("==================")
+    print(result)
+
+
 # using small amount of samples for training and testing
 def experiment_debug(alpha=1):
     train_samples = [
@@ -53,7 +64,7 @@ def experiment_debug(alpha=1):
 
     hmm_y = preprocess_corpus(hmm_y, preprocess_remove_start_stop_tokens)
     b_y = preprocess_corpus(b_y, preprocess_remove_start_stop_tokens)
-    print(evaluate(hmm_y, b_y))
+    print_result(evaluate(hmm_y, b_y), "debug")
 
 
 def experiment_baseline():
@@ -65,14 +76,14 @@ def experiment_baseline():
     prediction_dev = preprocess_corpus(
         prediction_dev, preprocess_remove_start_stop_tokens
     )
-    print(evaluate(gold_dev, prediction_dev))
+    print_result(evaluate(gold_dev, prediction_dev), "Baseline_Dev")
 
     # test
     prediction_test = baseline_tagger.predict(test_corpus)
     prediction_test = preprocess_corpus(
         prediction_test, preprocess_remove_start_stop_tokens
     )
-    print(evaluate(gold_test, prediction_test))
+    print_result(evaluate(gold_test, prediction_test), "Baseline_Test")
 
 
 def experiment_hmm(alpha=1):
@@ -84,14 +95,28 @@ def experiment_hmm(alpha=1):
     prediction_dev = preprocess_corpus(
         prediction_dev, preprocess_remove_start_stop_tokens
     )
-    print(evaluate(gold_dev, prediction_dev))
+    print_result(
+        evaluate(gold_dev, prediction_dev), f"HMM_Dev with alpha={alpha}"
+    )
 
     # test
     prediction_test = hmm_tagger.predict(test_corpus)
     prediction_test = preprocess_corpus(
         prediction_test, preprocess_remove_start_stop_tokens
     )
-    print(evaluate(gold_test, prediction_test))
+    print_result(
+        evaluate(gold_test, prediction_test), f"HMM_Test with alpha={alpha}"
+    )
+
+    print_result(
+        ConfusionMatrix(
+            preprocess_flatten_corpus(gold_test, preprocess_extract_tags),
+            preprocess_flatten_corpus(
+                prediction_test, preprocess_extract_tags
+            ),
+        ),
+        f"Confusion Matrix with alpha={alpha}",
+    )
 
 
 def experiment_hmm_alpha(alpha=1):
@@ -99,11 +124,11 @@ def experiment_hmm_alpha(alpha=1):
     hmm_tagger.train(train_corpus, alpha)
 
     # dev
-    prediction_dev = hmm_tagger.predict(dev_corpus[0:5])
+    prediction_dev = hmm_tagger.predict(dev_corpus)
     prediction_dev = preprocess_corpus(
         prediction_dev, preprocess_remove_start_stop_tokens
     )
-    return evaluate(gold_dev[0:5], prediction_dev, output_dict=True)
+    return evaluate(gold_dev, prediction_dev, output_dict=True)
 
 
 def plot_hmm_param_performance():
@@ -116,7 +141,9 @@ def plot_hmm_param_performance():
         axs[2],
     )
 
-    alphas = [1, 0.001]
+    alphas = np.logspace(0, -9, 10)
+    result_df = pd.DataFrame(alphas, columns=["alpha"])
+
     accuracy_list = []
     macro_precision_list = []
     macro_recall_list = []
@@ -151,6 +178,14 @@ def plot_hmm_param_performance():
         weighted_recall_list.append(report["weighted avg"]["recall"])
         weighted_f1_list.append(report["weighted avg"]["f1-score"])
 
+    result_df["accuracy"] = accuracy_list
+    result_df["macro_precision"] = macro_precision_list
+    result_df["macro_recall"] = macro_recall_list
+    result_df["macro_f1"] = macro_f1_list
+    result_df["weighted_precision"] = weighted_precision_list
+    result_df["weighted_recall"] = weighted_recall_list
+    result_df["weighted_f1"] = weighted_f1_list
+
     accuracy_ax.plot(alphas, accuracy_list, "g")
     macro_ax.plot(alphas, macro_precision_list, "b", label="precision")
     macro_ax.plot(alphas, macro_recall_list, "r", label="recall")
@@ -162,7 +197,11 @@ def plot_hmm_param_performance():
     macro_ax.legend()
     weighted_ax.legend()
 
+    result_df.to_csv("result_report.csv", index=False)
     fig.savefig("alpha_report.png")
 
 
+experiment_baseline()
+experiment_hmm()
 plot_hmm_param_performance()
+experiment_hmm(alpha=pow(10, -5))

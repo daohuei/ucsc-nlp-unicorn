@@ -23,5 +23,13 @@ def preprocess_extract_words(sent):
     return [word for word, _ in sent]
 
 
+def preprocess_extract_tags(sent):
+    return [tag for _, tag in sent]
+
+
 def preprocess_corpus(corpus, preprocess):
     return [preprocess(sent) for sent in corpus]
+
+
+def preprocess_flatten_corpus(corpus, preprocess):
+    return [token for sent in corpus for token in preprocess(sent)]
