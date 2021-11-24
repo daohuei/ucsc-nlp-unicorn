@@ -1,7 +1,7 @@
 import torch
 from matplotlib import pyplot as plt
 
-from evaluate import val_accuracy
+from evaluate import evaluation_report, joint_accuracy
 
 
 def train(
@@ -15,12 +15,15 @@ def train(
     is_plot=False,
     plot_name="",
 ):
+    reports = []
     epochs_plot = []
     losses_plot = []
     train_losses_plot = []
     val_losses_plot = []
     train_accuracy_plot = []
     val_accuracy_plot = []
+    train_joint_plot = []
+    val_joint_plot = []
 
     for epoch in range(1, n_epochs + 1):
 
@@ -51,18 +54,31 @@ def train(
             train_loss = loss_func(train_pred, train_y)
             val_loss = loss_func(val_pred, val_y)
 
-            train_accuracy_value = val_accuracy(
-                torch.argmax(train_pred, dim=1), data_loader.dataset, dataset
+            train_pred_output = torch.argmax(train_pred, dim=1)
+            val_pred_output = torch.argmax(val_pred, dim=1)
+
+            train_report = evaluation_report(
+                train_pred_output, data_loader.dataset, dataset
             )
-            val_accuracy_value = val_accuracy(
-                torch.argmax(val_pred, dim=1), val_set, dataset
+            val_report = evaluation_report(val_pred_output, val_set, dataset)
+
+            train_joint = joint_accuracy(
+                train_pred_output, data_loader.dataset, dataset
             )
+            val_joint = joint_accuracy(val_pred_output, val_set, dataset)
+
+            reports.append((train_report, val_report, train_joint, val_joint))
+
+            train_accuracy_value = train_report["accuracy"]
+            val_accuracy_value = val_report["accuracy"]
 
             print("batch loss: ", loss.item(), end="\t")
             print("train loss: ", train_loss.item(), end="\t")
             print("val loss: ", val_loss.item(), end="\t")
             print("train accuracy: ", train_accuracy_value, end="\t")
-            print("val accuracy: ", val_accuracy_value)
+            print("val accuracy: ", val_accuracy_value, end="\t")
+            print("train joint accuracy: ", train_joint, end="\t")
+            print("val joint accuracy: ", val_joint)
             if is_plot:
                 epochs_plot.append(epoch)
                 losses_plot.append(loss.item())
@@ -70,6 +86,8 @@ def train(
                 val_losses_plot.append(val_loss.item())
                 train_accuracy_plot.append(train_accuracy_value)
                 val_accuracy_plot.append(val_accuracy_value)
+                train_joint_plot.append(train_joint)
+                val_joint_plot.append(val_joint)
     if is_plot:
         # a figure with 2x1 grid of Axes
         fig, axes = plt.subplots(2, 1, figsize=(10, 10))
@@ -91,5 +109,12 @@ def train(
         accuracy_ax.plot(
             epochs_plot, val_accuracy_plot, "r", label="val accuracy"
         )
+        accuracy_ax.plot(
+            epochs_plot, train_joint_plot, "b--", label="train joint accuracy"
+        )
+        accuracy_ax.plot(
+            epochs_plot, val_joint_plot, "r--", label="val joint accuracy"
+        )
         accuracy_ax.legend()
         fig.savefig(f"{plot_name}.png")
+    return reports

@@ -1,3 +1,5 @@
+import copy
+
 import torch
 from torch import nn
 import numpy as np
@@ -55,12 +57,17 @@ def remove_special_tokens(input_seq, pred, true):
     new_seq = []
     new_pred = []
     new_true = []
-    for i in range(len(input_seq)):
-        if input_seq[i] in SPECIAL_TOKENS:
-            continue
-        new_seq.append(input_seq[i])
-        new_pred.append(pred[i])
-        new_true.append(true[i])
+    new_seq = input_seq[1:-1]
+    new_true = true[1:-1]
+    new_pred = pred[1:]
+
+    # if is truncated padding
+    while len(new_pred) < len(new_seq):
+        new_pred.append(PAD_TOKEN)
+
+    # if is expanded padding
+    while len(new_pred) > len(new_seq):
+        new_pred = new_pred[:-1]
 
     return new_seq, new_pred, new_true
 
@@ -74,6 +81,7 @@ def preprocess_utterances(utterances, utterance_dataset):
     utterances = tokenize(utterances)
     # add special tokens
     utterances = add_start_stop_tokens(utterances)
+    tokenized_utterances = copy.deepcopy(utterances)
     # padding
     utterances = padding(utterances, utterance_dataset.seq_len)
 
@@ -83,7 +91,19 @@ def preprocess_utterances(utterances, utterance_dataset):
         for sent in utterances
     ]
 
-    return utterances
+    return utterances, tokenized_utterances
+
+
+def read_glove_vector(glove_vec):
+    with open(glove_vec, "r", encoding="UTF-8") as f:
+        words = set()
+        word_to_vec_map = {}
+        for line in f:
+            w_line = line.split()
+            curr_word = w_line[0]
+            word_to_vec_map[curr_word] = np.array(w_line[1:], dtype=np.float64)
+
+    return word_to_vec_map
 
 
 # functions for creating the embedding layer
@@ -91,6 +111,23 @@ def get_one_hot_matrix(vocab):
     one_hot_matrix = np.zeros((len(vocab), len(vocab)))
     np.fill_diagonal(one_hot_matrix, 1)
     return one_hot_matrix
+
+
+def get_glove_matrix(glove_map, vocab):
+    matrix_len = len(vocab)
+    emb_dim = len(list(glove_map.values())[0])
+    weights_matrix = np.zeros((matrix_len, emb_dim))
+    for i, word in enumerate(vocab):
+        try:
+            weights_matrix[i] = glove_map[word]
+        except KeyError:
+            if word in [PAD_TOKEN, START_TOKEN, STOP_TOKEN]:
+                weights_matrix[i] = np.zeros((emb_dim,))
+            else:
+                weights_matrix[i] = np.random.normal(
+                    scale=0.6, size=(emb_dim,)
+                )
+    return weights_matrix
 
 
 def create_emb_layer(weights_matrix, non_trainable=False):

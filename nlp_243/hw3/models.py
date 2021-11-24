@@ -85,3 +85,76 @@ class RNNTwoLayerModel(nn.Module):
 
         out = F.softmax(out, dim=1)
         return out
+
+
+class GRUModel(nn.Module):
+    def __init__(
+        self, input_size, output_size, seq_len, emb_layer,
+    ):
+        super(GRUModel, self).__init__()
+        # Defining some parameters
+        self.input_size = input_size
+        self.output_size = output_size
+        self.seq_len = seq_len
+
+        # Defining the layers
+        # Embedding Layer
+        self.emb_layer = emb_layer
+        # RNN Layer
+        self.rnn = nn.GRUCell(input_size, output_size)
+
+    def forward(self, x):
+        batch_size = x.size(0)
+        out = self.emb_layer(x)
+
+        hiddens = []
+
+        # Initializing hidden state for first input
+        hidden = torch.zeros(batch_size, self.output_size).to(device)
+
+        for t in range(self.seq_len):
+            hidden = self.rnn(out[:, t, :], hidden)
+            # make an additional dimension
+            hiddens.append(torch.unsqueeze(hidden, dim=2))
+
+        # concat all the hidden layer
+        hiddens = torch.cat(hiddens, dim=2)
+        out = F.softmax(hiddens, dim=1)
+        return out
+
+
+class LSTMModel(nn.Module):
+    def __init__(
+        self, input_size, output_size, seq_len, emb_layer,
+    ):
+        super(LSTMModel, self).__init__()
+        # Defining some parameters
+        self.input_size = input_size
+        self.output_size = output_size
+        self.seq_len = seq_len
+
+        # Defining the layers
+        # Embedding Layer
+        self.emb_layer = emb_layer
+        # RNN Layer
+        self.rnn = nn.LSTMCell(input_size, output_size)
+
+    def forward(self, x):
+        batch_size = x.size(0)
+        out = self.emb_layer(x)
+
+        hiddens = []
+
+        # Initializing hidden state for first input
+        hidden = torch.zeros(batch_size, self.output_size).to(device)
+        cell = torch.zeros(batch_size, self.output_size).to(device)
+
+        for t in range(self.seq_len):
+            hidden, cell = self.rnn(out[:, t, :], (hidden, cell))
+            # make an additional dimension
+            hiddens.append(torch.unsqueeze(hidden, dim=2))
+
+        # concat all the hidden layer
+        hiddens = torch.cat(hiddens, dim=2)
+        out = F.softmax(hiddens, dim=1)
+        return out

@@ -1,3 +1,5 @@
+import copy
+
 import torch
 from torch.utils.data import Dataset
 
@@ -17,6 +19,9 @@ class UtteranceSlotDataset(Dataset):
         # adding start and stop tokens
         utterances = add_start_stop_tokens(utterances)
         slots = add_start_stop_tokens(slots)
+
+        self.unpad_utterances = copy.deepcopy(utterances)
+        self.unpad_slots = copy.deepcopy(slots)
 
         # padding
         self.seq_len = seq_len
