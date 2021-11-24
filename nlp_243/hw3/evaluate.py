@@ -18,11 +18,7 @@ def inference(model, val_X):
     return val_pred
 
 
-def val_accuracy(model, val_set, utterance_slot_dataset):
-
-    val_X = utterance_slot_dataset.X[val_set.indices]
-    val_y = utterance_slot_dataset.y[val_set.indices]
-    val_pred = inference(model, val_X)
+def val_accuracy(val_pred, val_set, utterance_slot_dataset):
 
     input_seqs = [
         utterance_slot_dataset.unpad_utterances[indice]
