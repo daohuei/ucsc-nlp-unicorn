@@ -1,4 +1,4 @@
-from data import dev_data
+from data import dev_data, sample_num
 from optimizer import *
 from feature import Features, FeatureVector
 from model import write_predictions
@@ -23,6 +23,7 @@ def train(
     :param epochs: Int. The number of epochs to train
     :return: FeatureVector. The learned parameters.
     """
+
     parameters = FeatureVector({})  # creates a zero vector
     gradient = get_gradient(
         data, feature_names, tagset, parameters, score_func
@@ -44,7 +45,7 @@ def train(
 
     # return the final parameters
     return optimizer(
-        len(data),
+        sample_num,
         epochs,
         gradient,
         parameters,

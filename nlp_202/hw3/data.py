@@ -1,3 +1,6 @@
+from random import sample
+
+
 def read_data(filename):
     """
     Reads the CoNLL 2003 data into an array of dictionaries (a dictionary for each data point).
@@ -46,9 +49,10 @@ def read_gazetteer():
 
 
 gazetteer = read_gazetteer()
+sample_num = 500
 train_data = read_data("ner.train")[:]
-dev_data = read_data("ner.dev")[:]
-test_data = read_data("ner.test")[:]
+dev_data = sample(read_data("ner.dev"), 150)
+test_data = sample(read_data("ner.test"), 150)
 tagset = [
     "B-PER",
     "B-LOC",

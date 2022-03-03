@@ -1,7 +1,10 @@
+from random import sample
+
 from tqdm import tqdm
 
 from feature import FeatureVector, Features, compute_features
 from model import decode, backtrack
+from data import sample_num
 
 EARLY_STOP_NO_IMPROVE_LIMIT = 3
 
@@ -185,6 +188,8 @@ def svm_score(gold_labels, parameters, features, cost_func=hamming_loss()):
 
 
 def get_gradient(data, feature_names, tagset, parameters, score_func):
+    data = sample(data, sample_num)
+
     def subgradient(i):
         """
         Computes the subgradient of the Perceptron loss for example i
