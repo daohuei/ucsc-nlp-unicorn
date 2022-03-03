@@ -1,0 +1,2 @@
+START = "<START>"
+STOP = "<STOP>"
