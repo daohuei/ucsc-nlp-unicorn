@@ -24,23 +24,23 @@ def perceptron_experiment(feature_names, name, optimizer, write_params=False):
         parameters.write_to_file(f"{name}.parameters")
 
 
-def svm_experiment(cost, name):
+def svm_experiment(cost, feature_names, name):
     print(f"\n\n=============Results of Experiment {name}============\n\n")
-    step_sizes = [0.1, 1, 10]
-    l2_lambdas = [0.1, 1, 10]
+    step_sizes = [10, 50, 100]
+    l2_lambdas = [0.0001, 0.0005, 0.001]
     tunning_columns = ["step_size", "l2_lambda", "precision", "recall", "f1"]
     score = svm_with_cost_func(cost)
-    max_f1 = 0
-    best_parameters = None
+    max_f1 = float("-inf")
+    best_parameters = FeatureVector({})
     reports = []
     for step_size in step_sizes:
         for l2_lambda in l2_lambdas:
             print(f"step: {step_size}, lambda: {l2_lambda}")
             parameters = train(
                 train_data,
-                feature_full,
+                feature_names,
                 tagset,
-                epochs=5,
+                epochs=10,
                 step_size=step_size,
                 score_func=score,
                 optimizer=optimizer(
@@ -48,21 +48,24 @@ def svm_experiment(cost, name):
                 ),
             )
             precision, recall, f1 = evaluate(
-                dev_data, parameters, feature_full, tagset, score
+                dev_data, parameters, feature_names, tagset, score
+            )
+            print(
+                f"Tuning=> Precision: {precision} Recall: {recall} F-1: {f1}\n"
             )
             reports.append([step_size, l2_lambda, precision, recall, f1])
             if f1 > max_f1:
                 tuned_step_size = step_size
                 tuned_l2_lambda = l2_lambda
-                best_parameters = parameters
-    print(f"\nBest!! step: {step_size}, lambda: {l2_lambda}\n")
+                best_parameters = FeatureVector({})
+                best_parameters.times_plus_equal(1, parameters)
+                max_f1 = f1
+    print(f"\nBest!! step: {tuned_step_size}, lambda: {tuned_l2_lambda}\n")
     write_reports(reports, f"{name}.tuning.report", tunning_columns)
     evaluate_dev_and_test(best_parameters, feature_full, score, name=name)
 
 
 def experiment():
-    # TODO: average loss over epochs
-
     # feat1-4 perceptron ssgd
     perceptron_experiment(
         feature_names=feature_1_to_4,
@@ -86,11 +89,15 @@ def experiment():
     )
 
     # feat-full svm ssgd: tune step_size and regularizer
-    svm_experiment(hamming_loss(), name="feat-full_svm_ssgd")
+    svm_experiment(
+        hamming_loss(), feature_names=feature_full, name="feat-full_svm_ssgd"
+    )
 
     # feat-full modified-svm ssgd: tune step_size and regularizer
     svm_experiment(
-        hamming_loss(penalty=30), name="feat-full_modified-svm_ssgd"
+        hamming_loss(penalty=30),
+        feature_names=feature_full,
+        name="feat-full_modified-svm_ssgd",
     )
 
 

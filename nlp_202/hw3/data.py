@@ -50,7 +50,7 @@ def read_gazetteer():
 
 gazetteer = read_gazetteer()
 sample_num = 500
-train_data = read_data("ner.train")[:]
+train_data = read_data("ner.train")
 dev_data = sample(read_data("ner.dev"), 150)
 test_data = sample(read_data("ner.test"), 150)
 tagset = [

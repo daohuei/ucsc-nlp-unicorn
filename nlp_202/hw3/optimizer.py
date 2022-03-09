@@ -73,6 +73,7 @@ def optimizer(update_func="ssgd", l2_lambda=0.01):
         # w − α g(x, y) − αλw
         parameters.times_plus_equal(-step_size, grad)
         parameters.times_plus_equal(-step_size, regularizer)
+        return parameters
 
     update = ssgd
     if update_func == "adagrad":
