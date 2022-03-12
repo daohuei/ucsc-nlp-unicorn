@@ -119,6 +119,13 @@ def reverse_map(_map):
     return reversed_map
 
 
+def get_max_word_len(word_vocab):
+    max_len = 0
+    for _, val in word_vocab.idx2token.items():
+        max_len = max(max_len, len(val))
+    return max_len
+
+
 print("==================Loading Data=======================")
 # Make up some training data
 train_data = load_data("A4-data/train")[:]
@@ -154,6 +161,12 @@ tag_vocab = Vocab(
         "I-cell_type": 12,
     },
 )
+char_vocab = Vocab(
+    [word for sequence in train_set.X for word in sequence],
+    base_map={PADDING: 0, UNK_TOKEN: 1},
+)
+
+max_word_len = get_max_word_len(word_vocab)
 
 # text preprocess pipeline
 def text_pipeline(sentence):

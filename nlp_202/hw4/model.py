@@ -3,13 +3,19 @@ import torch.nn as nn
 from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
 
 from constants import START_TAG, STOP_TAG, DEVICE
-from helper import argmax, log_sum_exp
-from data import tag_vocab
+from helper import argmax, log_sum_exp, convert_to_char_tensor
+from data import tag_vocab, max_word_len, char_vocab, word_vocab
 
 
 class BiLSTM_CRF(nn.Module):
     def __init__(
-        self, vocab_size, tag_to_ix, embedding_dim, hidden_dim, char_cnn=False
+        self,
+        vocab_size,
+        tag_to_ix,
+        embedding_dim,
+        hidden_dim,
+        char_cnn=False,
+        char_embedding_dim=4,
     ):
         super(BiLSTM_CRF, self).__init__()
         self.embedding_dim = embedding_dim
@@ -17,12 +23,24 @@ class BiLSTM_CRF(nn.Module):
         self.vocab_size = vocab_size
         self.tag_to_ix = tag_to_ix
         self.tagset_size = len(tag_to_ix)
+        self.char_cnn = char_cnn
+        self.max_word_len = max_word_len
 
         self.word_embeds = nn.Embedding(
             vocab_size, embedding_dim, padding_idx=0
         )
+
+        self.char_cnn_layer = CharCNN(
+            max_word_len=max_word_len,
+        )
+        self.lstm_input_dim = embedding_dim
+        if char_cnn:
+            self.lstm_input_dim = (
+                self.embedding_dim + self.char_cnn_layer.embedding_dim
+            )
+
         self.lstm = nn.LSTM(
-            embedding_dim,
+            self.lstm_input_dim,
             hidden_dim // 2,
             num_layers=1,
             bidirectional=True,
@@ -92,9 +110,28 @@ class BiLSTM_CRF(nn.Module):
     def _get_lstm_features(self, sentences, seq_lens):
         # for getting sentence features from LSTM in tag space
         batch_size = len(sentences)
+
         self.hidden = self.init_hidden(batch=batch_size)
         # embeds shape: batch x seq_len  x emb_dim
         embeds = self.word_embeds(sentences)
+
+        # character-level embedding
+        if self.char_cnn:
+            # generate char-level embedding for each token, go over sequence
+            char_embeddeds = []
+            for i in range(sentences.size()[1]):
+                token_vector = sentences[:, i]
+                char_tensor = convert_to_char_tensor(
+                    token_vector, word_vocab, char_vocab, self.max_word_len
+                ).to(DEVICE)
+                char_embedded = self.char_cnn_layer(char_tensor)
+                char_embedded = torch.transpose(char_embedded, 1, 2)
+                char_embeddeds.append(char_embedded)
+            # concatenate all chars together in sequence level
+            char_embeddeds = torch.cat(char_embeddeds, 1)
+            # concatenate word and char-level embedding together in embedding dimension
+            embeds = torch.cat([char_embeddeds, embeds], 2)
+
         packed_embeds = pack_padded_sequence(
             embeds, seq_lens, batch_first=True
         )
@@ -203,3 +240,56 @@ class BiLSTM_CRF(nn.Module):
             scores += [score]
             preds += [tag_seq]
         return scores, preds
+
+
+class CharCNN(nn.Module):
+    def __init__(
+        self,
+        stride=2,
+        embedding_dim=4,
+        max_word_len=20,
+    ):
+        super(CharCNN, self).__init__()
+
+        # Parameters regarding text preprocessing
+        self.embedding_dim = embedding_dim
+        self.max_word_len = max_word_len
+        self.vocab_size = len(char_vocab.token2idx)
+
+        # Dropout definition
+        self.dropout = nn.Dropout(0.25)
+
+        # CNN parameters definition
+        self.kernel = 2
+        self.stride = stride
+        self.padding = self.kernel - 1
+
+        # Embedding layer definition:
+        self.embedding = nn.Embedding(
+            self.vocab_size,
+            self.embedding_dim,
+            padding_idx=0,
+        )
+        # Convolution layer definition
+        self.conv = nn.Conv1d(
+            self.embedding_dim,
+            self.embedding_dim,
+            kernel_size=self.kernel,
+            stride=self.stride,
+            padding=self.padding,
+        )
+
+        self.output_dim = (
+            self.max_word_len + 2 * self.padding - (self.kernel - 1) - 1
+        ) // self.stride + 1
+        # Max pooling layers definition
+        self.pool = nn.MaxPool1d(self.output_dim, 1)
+
+    def forward(self, X):
+        # X: input token
+        embedded = self.embedding(X)
+        embedded = torch.transpose(embedded, 1, 2)
+        embedded = self.dropout(embedded)
+        conv_out = self.conv(embedded)
+        pool_out = self.pool(conv_out)
+        return pool_out

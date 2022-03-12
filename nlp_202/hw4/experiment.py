@@ -21,12 +21,14 @@ tag_to_ix = tag_vocab.token2idx
 
 def experiment(
     emb_dim=5,
+    char_emb_dim=4,
     hidden_dim=4,
     epoch_num=2,
     batch_size=2,
     lr=0.01,
     lamb=1e-4,
     name="model",
+    char_cnn=False,
 ):
 
     # use data loader for batching data
@@ -34,12 +36,18 @@ def experiment(
     dev_loader = get_data_loader(batch_size=batch_size, set_name="dev")
     test_loader = get_data_loader(batch_size=batch_size, set_name="test")
 
-    print("======================Declaring Model=================")
+    print("======================Initializing Model=================")
     model = BiLSTM_CRF(
-        len(word_vocab), tag_vocab.token2idx, emb_dim, hidden_dim
+        len(word_vocab),
+        tag_vocab.token2idx,
+        emb_dim,
+        hidden_dim,
+        char_cnn=char_cnn,
+        char_embedding_dim=char_emb_dim,
     ).to(DEVICE)
     # optimizer = optim.SGD(model.parameters(), lr=lr, weight_decay=lamb)
     optimizer = optim.Adam(model.parameters(), lr=0.1, weight_decay=lamb)
+
     print("======================Training Model=================")
     (model, train_epoch_times) = train(
         model, optimizer, train_loader, dev_loader, epoch_num, name=name
