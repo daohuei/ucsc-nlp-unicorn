@@ -38,8 +38,8 @@ def experiment(
     model = BiLSTM_CRF(
         len(word_vocab), tag_vocab.token2idx, emb_dim, hidden_dim
     ).to(DEVICE)
-    optimizer = optim.SGD(model.parameters(), lr=lr, weight_decay=lamb)
-
+    # optimizer = optim.SGD(model.parameters(), lr=lr, weight_decay=lamb)
+    optimizer = optim.Adam(model.parameters(), lr=0.1, weight_decay=lamb)
     print("======================Training Model=================")
     (model, train_epoch_times) = train(
         model, optimizer, train_loader, dev_loader, epoch_num, name=name
@@ -86,5 +86,7 @@ def experiment(
     }
     output_hyper_parameters(hp_map, name=f"{name}.hp")
     output_training_time(
-        batch_size, sum(train_epoch_times) / len(train_epoch_times)
+        batch_size,
+        sum(train_epoch_times) / len(train_epoch_times),
+        name=f"{name}.time",
     )

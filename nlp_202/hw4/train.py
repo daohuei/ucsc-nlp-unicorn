@@ -5,11 +5,10 @@ from tqdm import tqdm
 from matplotlib import pyplot as plt
 
 from helper import unpad_sequence, convert_batch_sequence
-from data import word_vocab, tag_vocab
+from data import tag_vocab
 from evaluate import batch_evaluate
-from constants import DEVICE
 
-EARLY_STOPPING_THRES = 5
+EARLY_STOPPING_THRES = 10
 
 
 def train(
@@ -63,23 +62,14 @@ def train(
         train_epoch_times.append(end_time - start_time)
 
         # Evaluating
-        # epoch_dev_loss = 0
         dev_preds = []
         dev_golds = []
         for X, Y, seq_lens, _ in tqdm(dev_loader, desc="Validating"):
-            # Run our forward pass and calculate loss for dev
-            # dev_loss = model.neg_log_likelihood(X, Y, seq_lens)
-            # epoch_dev_loss += dev_loss.item()
-
             # making prediction on dev set and store the prediction
             _, preds = model.forward(X, seq_lens)
             golds = unpad_sequence(Y.cpu().numpy(), seq_lens)
             dev_preds += preds
             dev_golds += golds
-
-        # record the dev loss
-        # avg_dev_epoch_loss = epoch_dev_loss / dev_size
-        # avg_dev_epoch_losses.append(avg_dev_epoch_loss)
 
         # evaluate the dev score
         dev_preds = convert_batch_sequence(dev_preds, tag_vocab)
@@ -96,14 +86,14 @@ def train(
 
         # store the best model by evaluating the score
         best_f1 = best_score[2]
-        if best_f1 <= dev_f1:
+        if best_f1 < dev_f1:
             no_improve_count = 0
             best_score = (dev_precision, dev_recall, dev_f1)
             torch.save(model.state_dict(), f"{name}.pt")
         else:
             # if not improving, early stop the training process
             no_improve_count += 1
-            if no_improve_count >= EARLY_STOPPING_THRES:
+            if no_improve_count >= EARLY_STOPPING_THRES and best_f1 > 0:
                 print("Not improving, early stopped!!")
                 break
 
@@ -136,9 +126,3 @@ def plot_losses(loss_ax, epoch_num, avg_train_epoch_losses):
         "r",
         label="train loss",
     )
-    # loss_ax.plot(
-    #     list(range(1, epoch_num + 1)),
-    #     avg_dev_epoch_losses,
-    #     "b",
-    #     label="dev loss",
-    # )

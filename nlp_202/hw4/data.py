@@ -1,4 +1,6 @@
 from collections import Counter
+import random
+from random import sample
 
 import torch
 from torch.utils.data import DataLoader, Dataset
@@ -6,14 +8,17 @@ from torch.nn.utils.rnn import pad_sequence
 
 from constants import START_TAG, STOP_TAG, PADDING, UNK_TOKEN, DEVICE
 
+random.seed(1)
+
 
 class BioDataset(Dataset):
     def __init__(self, data):
         self.X = []
         self.y = []
         for sent, tag in data:
-            self.X.append(sent)
-            self.y.append(tag)
+            if len(sent) > 0:
+                self.X.append(sent)
+                self.y.append(tag)
 
     # Must have
     def __len__(self):
@@ -116,9 +121,15 @@ def reverse_map(_map):
 
 print("==================Loading Data=======================")
 # Make up some training data
-train_data = load_data("A4-data/train")[:1000]
+train_data = load_data("A4-data/train")[:]
 dev_data = load_data("A4-data/dev.answers")[:]
 test_data = load_data("A4-data/test_answers/test.answers")[:]
+
+train_data = sample(train_data, 1000)
+# dev_data = train_data
+# test_data = train_data
+# dev_data = sample(dev_data, 2)
+# test_data = sample(test_data, 2)
 
 train_set = BioDataset(train_data)
 dev_set = BioDataset(dev_data)

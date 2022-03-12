@@ -4,7 +4,7 @@ import pandas as pd
 
 from conlleval import evaluate as conllevaluate
 from helper import convert_batch_sequence, unpad_sequence
-from data import word_vocab, tag_vocab
+from data import tag_vocab
 
 
 def batch_evaluate(golds, preds, verbose=True):
