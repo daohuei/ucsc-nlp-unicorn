@@ -4,7 +4,7 @@ import torch
 from torch.utils.data import DataLoader, Dataset
 from torch.nn.utils.rnn import pad_sequence
 
-from constants import START_TAG, STOP_TAG, PADDING, UNK_TOKEN
+from constants import START_TAG, STOP_TAG, PADDING, UNK_TOKEN, DEVICE
 
 
 class BioDataset(Dataset):
@@ -117,8 +117,8 @@ def reverse_map(_map):
 print("==================Loading Data=======================")
 # Make up some training data
 train_data = load_data("A4-data/train")[:1000]
-dev_data = load_data("A4-data/dev.answers")
-test_data = load_data("A4-data/test_answers/test.answers")
+dev_data = load_data("A4-data/dev.answers")[:]
+test_data = load_data("A4-data/test_answers/test.answers")[:]
 
 train_set = BioDataset(train_data)
 dev_set = BioDataset(dev_data)
@@ -175,7 +175,7 @@ def collate_batch(batch):
     label_list = label_list[perm_idx]
     index_list = index_list[perm_idx]
 
-    return text_list, label_list, len_list, index_list
+    return text_list.to(DEVICE), label_list.to(DEVICE), len_list, index_list
 
 
 def get_data_loader(batch_size: int = 1, set_name="train"):

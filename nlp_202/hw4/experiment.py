@@ -13,6 +13,7 @@ from evaluate import (
 )
 from train import train
 from data import get_data_loader, word_vocab, tag_vocab
+from constants import DEVICE
 
 word_to_ix = word_vocab.token2idx
 tag_to_ix = tag_vocab.token2idx
@@ -36,15 +37,13 @@ def experiment(
     print("======================Declaring Model=================")
     model = BiLSTM_CRF(
         len(word_vocab), tag_vocab.token2idx, emb_dim, hidden_dim
-    )
+    ).to(DEVICE)
     optimizer = optim.SGD(model.parameters(), lr=lr, weight_decay=lamb)
 
     print("======================Training Model=================")
-    (
-        model,
-        best_score,
-        train_epoch_times,
-    ) = train(model, optimizer, train_loader, dev_loader, epoch_num, name=name)
+    (model, train_epoch_times) = train(
+        model, optimizer, train_loader, dev_loader, epoch_num, name=name
+    )
 
     print("======================Evaluating Model=================")
     dev_all_input, dev_all_preds, dev_all_golds = inference(model, dev_loader)

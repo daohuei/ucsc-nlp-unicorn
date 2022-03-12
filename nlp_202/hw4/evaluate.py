@@ -27,7 +27,7 @@ def inference(model, data_loader):
 
         # making prediction on dev set and store the prediction
         _, preds = model.forward(X, seq_lens)
-        golds = unpad_sequence(Y.numpy(), seq_lens)
+        golds = unpad_sequence(Y.cpu().numpy(), seq_lens)
         inputs = [raw_inputs[index] for index in indexes]
 
         all_input += inputs

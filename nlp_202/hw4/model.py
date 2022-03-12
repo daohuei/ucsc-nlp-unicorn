@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
 
-from constants import START_TAG, STOP_TAG
+from constants import START_TAG, STOP_TAG, DEVICE
 from helper import argmax, log_sum_exp
 from data import tag_vocab
 
@@ -49,14 +49,14 @@ class BiLSTM_CRF(nn.Module):
         # D*num_layers x batch x hidden_dim
         # D = 2 if bidirectional=True otherwise 1
         return (
-            torch.randn(2, batch, self.hidden_dim // 2),
-            torch.randn(2, batch, self.hidden_dim // 2),
+            torch.randn(2, batch, self.hidden_dim // 2).to(DEVICE),
+            torch.randn(2, batch, self.hidden_dim // 2).to(DEVICE),
         )
 
     def _forward_alg(self, feats):
         # Do the forward algorithm to compute the partition function
-        init_alphas = torch.full(
-            (1, self.tagset_size), -10000.0
+        init_alphas = torch.full((1, self.tagset_size), -10000.0).to(
+            DEVICE
         )  # 1 x |tag_set|
         # START_TAG has all of the score.
         init_alphas[0][self.tag_to_ix[START_TAG]] = 0.0
@@ -90,7 +90,6 @@ class BiLSTM_CRF(nn.Module):
     def _get_lstm_features(self, sentences, seq_lens):
         # for getting sentence features from LSTM in tag space
         batch_size = len(sentences)
-        seq_len = len(sentences[0])
         self.hidden = self.init_hidden(batch=batch_size)
         # embeds shape: batch x seq_len  x emb_dim
         embeds = self.word_embeds(sentences)
@@ -109,9 +108,14 @@ class BiLSTM_CRF(nn.Module):
 
     def _score_sentence(self, feats, tags):
         # Gives the score of a provided tag sequence
-        score = torch.zeros(1)
+        score = torch.zeros(1).to(DEVICE)
         tags = torch.cat(
-            [torch.tensor([self.tag_to_ix[START_TAG]], dtype=torch.long), tags]
+            [
+                torch.tensor([self.tag_to_ix[START_TAG]], dtype=torch.long).to(
+                    DEVICE
+                ),
+                tags,
+            ]
         )
         for i, feat in enumerate(feats):
             tag_vocab.idx2token[tags[i + 1].item()]
@@ -127,7 +131,7 @@ class BiLSTM_CRF(nn.Module):
         backpointers = []
 
         # Initialize the viterbi variables in log space
-        init_vvars = torch.full((1, self.tagset_size), -10000.0)
+        init_vvars = torch.full((1, self.tagset_size), -10000.0).to(DEVICE)
         init_vvars[0][self.tag_to_ix[START_TAG]] = 0
 
         # forward_var at step i holds the viterbi variables for step i-1

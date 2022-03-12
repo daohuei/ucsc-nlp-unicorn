@@ -7,6 +7,7 @@ from matplotlib import pyplot as plt
 from helper import unpad_sequence, convert_batch_sequence
 from data import word_vocab, tag_vocab
 from evaluate import batch_evaluate
+from constants import DEVICE
 
 EARLY_STOPPING_THRES = 5
 
@@ -62,23 +63,23 @@ def train(
         train_epoch_times.append(end_time - start_time)
 
         # Evaluating
-        epoch_dev_loss = 0
+        # epoch_dev_loss = 0
         dev_preds = []
         dev_golds = []
         for X, Y, seq_lens, _ in tqdm(dev_loader, desc="Validating"):
             # Run our forward pass and calculate loss for dev
-            dev_loss = model.neg_log_likelihood(X, Y, seq_lens)
-            epoch_dev_loss += dev_loss.item()
+            # dev_loss = model.neg_log_likelihood(X, Y, seq_lens)
+            # epoch_dev_loss += dev_loss.item()
 
             # making prediction on dev set and store the prediction
             _, preds = model.forward(X, seq_lens)
-            golds = unpad_sequence(Y.numpy(), seq_lens)
+            golds = unpad_sequence(Y.cpu().numpy(), seq_lens)
             dev_preds += preds
             dev_golds += golds
 
         # record the dev loss
-        avg_dev_epoch_loss = epoch_dev_loss / dev_size
-        avg_dev_epoch_losses.append(avg_dev_epoch_loss)
+        # avg_dev_epoch_loss = epoch_dev_loss / dev_size
+        # avg_dev_epoch_losses.append(avg_dev_epoch_loss)
 
         # evaluate the dev score
         dev_preds = convert_batch_sequence(dev_preds, tag_vocab)
@@ -89,12 +90,8 @@ def train(
 
         # print the performance of current epoch
         print(f"Epoch {epoch} Training Loss: {avg_train_epoch_loss}")
-        print(
-            f"Epoch {epoch} Dev Loss: {avg_dev_epoch_loss} Dev F-1: {dev_f1}"
-        )
-        plot_losses(
-            loss_ax, epoch, avg_train_epoch_losses, avg_dev_epoch_losses
-        )
+        print(f"Epoch {epoch}  Dev F-1: {dev_f1}")
+        plot_losses(loss_ax, epoch, avg_train_epoch_losses)
         loss_fig.savefig(f"{name}_loss.png")
 
         # store the best model by evaluating the score
@@ -113,7 +110,6 @@ def train(
     model.load_state_dict(torch.load(f"{name}.pt"))
     return (
         model,
-        best_score,
         train_epoch_times,
     )
 
@@ -124,35 +120,25 @@ def init_loss_plot():
     # Plot the comparison between training time and batch size
     loss_ax.set_xlabel("Epochs")
     loss_ax.set_ylabel("Loss")
-    loss_ax.set_title("Train/Dev Loss over Epochs")
+    loss_ax.set_title("Train Loss over Epochs")
     loss_ax.plot(
-        [],
-        [],
-        "r",
-        label="train loss",
+        [], [], "r", label="train loss",
     )
-    loss_ax.plot(
-        [],
-        [],
-        "b",
-        label="dev loss",
-    )
+
     loss_ax.legend()
     return loss_ax, loss_fig
 
 
-def plot_losses(
-    loss_ax, epoch_num, avg_train_epoch_losses, avg_dev_epoch_losses
-):
+def plot_losses(loss_ax, epoch_num, avg_train_epoch_losses):
     loss_ax.plot(
         list(range(1, epoch_num + 1)),
         avg_train_epoch_losses,
         "r",
         label="train loss",
     )
-    loss_ax.plot(
-        list(range(1, epoch_num + 1)),
-        avg_dev_epoch_losses,
-        "b",
-        label="dev loss",
-    )
+    # loss_ax.plot(
+    #     list(range(1, epoch_num + 1)),
+    #     avg_dev_epoch_losses,
+    #     "b",
+    #     label="dev loss",
+    # )
