@@ -10,13 +10,13 @@ app = typer.Typer()
 
 @app.command()
 def bi_lstm_crf(
+    name,
     emb_dim: int = 5,
     hidden_dim: int = 4,
     epoch_num: int = 2,
     batch_size: int = 2,
     lr: float = 0.01,
     lamb: float = 1e-4,
-    name: str = "bi-lstm-crf",
     resume: bool = False,
 ):
     experiment(
@@ -33,6 +33,7 @@ def bi_lstm_crf(
 
 @app.command()
 def bi_lstm_crf_char_cnn(
+    name,
     emb_dim: int = 5,
     char_emb_dim: int = 4,
     stride: int = 2,
@@ -42,7 +43,6 @@ def bi_lstm_crf_char_cnn(
     batch_size: int = 2,
     lr: float = 0.01,
     lamb: float = 1e-4,
-    name: str = "bi_lstm_crf_char_cnn",
     resume: bool = False,
 ):
     experiment(
@@ -63,13 +63,13 @@ def bi_lstm_crf_char_cnn(
 
 @app.command()
 def bi_lstm_crf_softmax_margin_loss(
+    name,
     emb_dim: int = 5,
     hidden_dim: int = 4,
     epoch_num: int = 2,
     batch_size: int = 2,
     lr: float = 0.01,
     lamb: float = 1e-4,
-    name: str = "bi_lstm_crf_softmax_margin_loss",
     resume: bool = False,
 ):
     experiment(
@@ -87,13 +87,13 @@ def bi_lstm_crf_softmax_margin_loss(
 
 @app.command()
 def bi_lstm_crf_svm_loss(
+    name,
     emb_dim: int = 5,
     hidden_dim: int = 4,
     epoch_num: int = 2,
     batch_size: int = 2,
     lr: float = 0.01,
     lamb: float = 1e-4,
-    name: str = "bi_lstm_crf_svm_loss",
     resume: bool = False,
 ):
     experiment(
@@ -111,13 +111,13 @@ def bi_lstm_crf_svm_loss(
 
 @app.command()
 def bi_lstm_crf_ramp_loss(
+    name,
     emb_dim: int = 5,
     hidden_dim: int = 4,
     epoch_num: int = 2,
     batch_size: int = 2,
     lr: float = 0.01,
     lamb: float = 1e-4,
-    name: str = "bi_lstm_crf_ramp_loss",
     resume: bool = False,
 ):
     experiment(
@@ -135,13 +135,13 @@ def bi_lstm_crf_ramp_loss(
 
 @app.command()
 def bi_lstm_crf_soft_ramp_loss(
+    name,
     emb_dim: int = 5,
     hidden_dim: int = 4,
     epoch_num: int = 2,
     batch_size: int = 2,
     lr: float = 0.01,
     lamb: float = 1e-4,
-    name: str = "bi_lstm_crf_soft_ramp_loss",
     resume: bool = False,
 ):
     experiment(
