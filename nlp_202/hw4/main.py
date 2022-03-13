@@ -16,7 +16,8 @@ def bi_lstm_crf(
     batch_size: int = 2,
     lr: float = 0.01,
     lamb: float = 1e-4,
-    name: str = "bi_lstm_crf",
+    name: str = "bi-lstm-crf",
+    resume: bool = False,
 ):
     experiment(
         emb_dim=emb_dim,
@@ -26,6 +27,7 @@ def bi_lstm_crf(
         lr=lr,
         lamb=lamb,
         name=name,
+        resume=resume,
     )
 
 
@@ -41,6 +43,7 @@ def bi_lstm_crf_char_cnn(
     lr: float = 0.01,
     lamb: float = 1e-4,
     name: str = "bi_lstm_crf_char_cnn",
+    resume: bool = False,
 ):
     experiment(
         emb_dim=emb_dim,
@@ -54,6 +57,7 @@ def bi_lstm_crf_char_cnn(
         lamb=lamb,
         name=name,
         char_cnn=True,
+        resume=resume,
     )
 
 
@@ -66,6 +70,7 @@ def bi_lstm_crf_softmax_margin_loss(
     lr: float = 0.01,
     lamb: float = 1e-4,
     name: str = "bi_lstm_crf_softmax_margin_loss",
+    resume: bool = False,
 ):
     experiment(
         emb_dim=emb_dim,
@@ -76,6 +81,7 @@ def bi_lstm_crf_softmax_margin_loss(
         lamb=lamb,
         name=name,
         loss="softmax_margin_loss",
+        resume=resume,
     )
 
 
@@ -88,6 +94,7 @@ def bi_lstm_crf_svm_loss(
     lr: float = 0.01,
     lamb: float = 1e-4,
     name: str = "bi_lstm_crf_svm_loss",
+    resume: bool = False,
 ):
     experiment(
         emb_dim=emb_dim,
@@ -98,6 +105,7 @@ def bi_lstm_crf_svm_loss(
         lamb=lamb,
         name=name,
         loss="svm_loss",
+        resume=resume,
     )
 
 
@@ -110,6 +118,7 @@ def bi_lstm_crf_ramp_loss(
     lr: float = 0.01,
     lamb: float = 1e-4,
     name: str = "bi_lstm_crf_ramp_loss",
+    resume: bool = False,
 ):
     experiment(
         emb_dim=emb_dim,
@@ -120,6 +129,7 @@ def bi_lstm_crf_ramp_loss(
         lamb=lamb,
         name=name,
         loss="ramp_loss",
+        resume=resume,
     )
 
 
@@ -132,6 +142,7 @@ def bi_lstm_crf_soft_ramp_loss(
     lr: float = 0.01,
     lamb: float = 1e-4,
     name: str = "bi_lstm_crf_soft_ramp_loss",
+    resume: bool = False,
 ):
     experiment(
         emb_dim=emb_dim,
@@ -142,6 +153,7 @@ def bi_lstm_crf_soft_ramp_loss(
         lamb=lamb,
         name=name,
         loss="soft_ramp_loss",
+        resume=resume,
     )
 
 

@@ -132,12 +132,6 @@ train_data = load_data("A4-data/train")[:]
 dev_data = load_data("A4-data/dev.answers")[:]
 test_data = load_data("A4-data/test_answers/test.answers")[:]
 
-train_data = sample(train_data, 1000)
-dev_data = train_data
-test_data = train_data
-# dev_data = sample(dev_data, 2)
-# test_data = sample(test_data, 2)
-
 train_set = BioDataset(train_data)
 dev_set = BioDataset(dev_data)
 test_set = BioDataset(test_data)
@@ -204,6 +198,39 @@ def collate_batch(batch):
 
 def get_data_loader(batch_size: int = 1, set_name="train"):
     assert set_name in ["train", "dev", "test"]
+    # use data loader for batching data
+    if set_name == "train":
+        return DataLoader(
+            dataset=train_set,
+            batch_size=batch_size,
+            collate_fn=collate_batch,
+            shuffle=False,
+        )
+    elif set_name == "dev":
+        return DataLoader(
+            dataset=dev_set,
+            batch_size=batch_size,
+            collate_fn=collate_batch,
+            shuffle=False,
+        )
+    else:
+        return DataLoader(
+            dataset=test_set,
+            batch_size=batch_size,
+            collate_fn=collate_batch,
+            shuffle=False,
+        )
+
+
+def get_sampled_data_loader(batch_size: int = 1, set_name="train"):
+    assert set_name in ["train", "dev", "test"]
+
+    sampled_train_data = sample(train_data, 20)
+
+    train_set = BioDataset(sampled_train_data)
+    dev_set = BioDataset(sampled_train_data)
+    test_set = BioDataset(sampled_train_data)
+
     # use data loader for batching data
     if set_name == "train":
         return DataLoader(

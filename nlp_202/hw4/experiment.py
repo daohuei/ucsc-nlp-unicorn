@@ -12,7 +12,12 @@ from evaluate import (
     batch_evaluate,
 )
 from train import train
-from data import get_data_loader, word_vocab, tag_vocab
+from data import (
+    get_data_loader,
+    get_sampled_data_loader,
+    word_vocab,
+    tag_vocab,
+)
 from constants import DEVICE
 
 word_to_ix = word_vocab.token2idx
@@ -32,12 +37,21 @@ def experiment(
     name="model",
     char_cnn=False,
     loss="crf_loss",
+    resume=False,
 ):
 
     # use data loader for batching data
     train_loader = get_data_loader(batch_size=batch_size, set_name="train")
     dev_loader = get_data_loader(batch_size=batch_size, set_name="dev")
     test_loader = get_data_loader(batch_size=batch_size, set_name="test")
+
+    # train_loader = get_sampled_data_loader(
+    #     batch_size=batch_size, set_name="train"
+    # )
+    # dev_loader = get_sampled_data_loader(batch_size=batch_size, set_name="dev")
+    # test_loader = get_sampled_data_loader(
+    #     batch_size=batch_size, set_name="test"
+    # )
 
     print("======================Initializing Model=================")
     model = BiLSTM_CRF(
@@ -51,6 +65,8 @@ def experiment(
         char_embedding_dim=char_emb_dim,
         loss=loss,
     ).to(DEVICE)
+    if resume:
+        model.load_state_dict(torch.load(f"{name}.pt", map_location=DEVICE))
     # optimizer = optim.SGD(model.parameters(), lr=lr, weight_decay=lamb)
     optimizer = optim.Adam(model.parameters(), lr=0.1, weight_decay=lamb)
 
