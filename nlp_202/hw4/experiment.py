@@ -29,6 +29,7 @@ def experiment(
     lamb=1e-4,
     name="model",
     char_cnn=False,
+    loss="crf_loss",
 ):
 
     # use data loader for batching data
@@ -44,6 +45,7 @@ def experiment(
         hidden_dim,
         char_cnn=char_cnn,
         char_embedding_dim=char_emb_dim,
+        loss=loss,
     ).to(DEVICE)
     # optimizer = optim.SGD(model.parameters(), lr=lr, weight_decay=lamb)
     optimizer = optim.Adam(model.parameters(), lr=0.1, weight_decay=lamb)

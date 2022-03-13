@@ -50,7 +50,7 @@ def train(
             # Compute gradients with loss
             loss.backward()
 
-            # Update the parameters by
+            # Update the parameters by optimizer.step()
             optimizer.step()
 
         # record the average loss
@@ -111,9 +111,7 @@ def init_loss_plot():
     loss_ax.set_xlabel("Epochs")
     loss_ax.set_ylabel("Loss")
     loss_ax.set_title("Train Loss over Epochs")
-    loss_ax.plot(
-        [], [], "r", label="train loss",
-    )
+    loss_ax.plot([], [], "r", label="train loss")
 
     loss_ax.legend()
     return loss_ax, loss_fig

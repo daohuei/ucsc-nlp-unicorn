@@ -3,7 +3,7 @@ import torch.nn as nn
 from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
 
 from constants import START_TAG, STOP_TAG, DEVICE
-from helper import argmax, log_sum_exp, convert_to_char_tensor
+from helper import argmax, log_sum_exp, hamming_loss, convert_to_char_tensor
 from data import tag_vocab, max_word_len, char_vocab, word_vocab
 
 
@@ -16,6 +16,7 @@ class BiLSTM_CRF(nn.Module):
         hidden_dim,
         char_cnn=False,
         char_embedding_dim=4,
+        loss="crf_loss",
     ):
         super(BiLSTM_CRF, self).__init__()
         self.embedding_dim = embedding_dim
@@ -25,6 +26,7 @@ class BiLSTM_CRF(nn.Module):
         self.tagset_size = len(tag_to_ix)
         self.char_cnn = char_cnn
         self.max_word_len = max_word_len
+        self.loss_type = loss
 
         self.word_embeds = nn.Embedding(
             vocab_size, embedding_dim, padding_idx=0
@@ -61,9 +63,6 @@ class BiLSTM_CRF(nn.Module):
         self.transitions.data[tag_to_ix[START_TAG], :] = -10000
         self.transitions.data[:, tag_to_ix[STOP_TAG]] = -10000
 
-        # initialize the hidden unit
-        # self.hidden = self.init_hidden()
-
     def init_hidden(self, batch):
         # cell state and hidden state initialization
         # D*num_layers x batch x hidden_dim
@@ -73,7 +72,7 @@ class BiLSTM_CRF(nn.Module):
             torch.randn(2, batch, self.hidden_dim // 2).to(DEVICE),
         )
 
-    def _forward_alg(self, feats):
+    def _forward_alg(self, feats, golds, cost):
         # Do the forward algorithm to compute the partition function
         init_alphas = torch.full((1, self.tagset_size), -10000.0).to(
             DEVICE
@@ -85,7 +84,7 @@ class BiLSTM_CRF(nn.Module):
         forward_var = init_alphas
 
         # Iterate through the sentence: the emission scores
-        for feat in feats:
+        for i, feat in enumerate(feats):
             alphas_t = []  # The forward tensors at this timestep
             for next_tag in range(self.tagset_size):
                 # broadcast the emission score: it is the same regardless of
@@ -98,7 +97,18 @@ class BiLSTM_CRF(nn.Module):
                 trans_score = self.transitions[next_tag].view(1, -1)
                 # The ith entry of next_tag_var is the value for the
                 # edge (i -> next_tag) before we do log-sum-exp
-                next_tag_var = forward_var + trans_score + emit_score
+                next_tag_var = None
+                if self.loss_type == "softmax_margin_loss":
+                    # generate log sum exp(score + cost)
+                    next_tag_var = (
+                        forward_var
+                        + trans_score
+                        + emit_score
+                        + cost(golds[i], next_tag)
+                    )
+                else:
+                    next_tag_var = forward_var + trans_score + emit_score
+                assert next_tag_var != None
                 # The forward variable for this tag is log-sum-exp of all the
                 # scores.
                 alphas_t.append(log_sum_exp(next_tag_var).view(1))
@@ -210,17 +220,18 @@ class BiLSTM_CRF(nn.Module):
         best_path.reverse()
         return path_score, best_path
 
-    def neg_log_likelihood(self, sentence, tags, seq_lens):
+    def neg_log_likelihood(
+        self, sentence, tags, seq_lens, cost=hamming_loss()
+    ):
         # loss function: negative log likelihood
         # emission score: seq_len x batch_size x len(tag_set)
         feats_tensor = self._get_lstm_features(sentence, seq_lens)
         loss = torch.tensor(0, dtype=torch.long)
         # go other batch dimension
-        # TODO: need to do batch operation on forward alg and viterbi alg
         for i in range(feats_tensor.size()[0]):
             feats = feats_tensor[i, : seq_lens[i], :]
             tag_seq = tags[i, : seq_lens[i]]
-            forward_score = self._forward_alg(feats)
+            forward_score = self._forward_alg(feats, tag_seq, cost)
             gold_score = self._score_sentence(feats, tag_seq)
             # log loss = - gold score + normalizer(log_sum)
             current_loss = forward_score - gold_score

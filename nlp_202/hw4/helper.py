@@ -38,6 +38,13 @@ def log_sum_exp(vec):
     )
 
 
+def hamming_loss(loss_val=10):
+    def loss(gold, pred):
+        return loss_val if gold != pred else 0
+
+    return loss
+
+
 def unpad_sequence(sequences, seq_lens):
     results = []
     for i, seq in enumerate(sequences):
