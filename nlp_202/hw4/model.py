@@ -203,13 +203,9 @@ class BiLSTM_CRF(nn.Module):
                 next_tag_var = None
                 if cost is not None:
                     # get the cost score
-                    cost_score = [
-                        torch.tensor(cost(golds[i], prev_tag))
-                        for prev_tag in range(self.tagset_size)
-                    ]
-                    cost_score = (
-                        torch.tensor(cost_score).unsqueeze(0).to(DEVICE)
-                    )
+                    cost_score = torch.full(
+                        (1, self.tagset_size), cost(golds[i], prev_tag)
+                    ).to(DEVICE)
                     # add to the score
                     next_tag_var = (
                         forward_var + self.transitions[next_tag] + cost_score
