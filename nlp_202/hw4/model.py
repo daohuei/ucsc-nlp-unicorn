@@ -204,7 +204,7 @@ class BiLSTM_CRF(nn.Module):
                 if cost is not None:
                     # get the cost score
                     cost_score = torch.full(
-                        (1, self.tagset_size), cost(golds[i], prev_tag)
+                        (1, self.tagset_size), cost(golds[i], next_tag)
                     ).to(DEVICE)
                     # add to the score
                     next_tag_var = (
