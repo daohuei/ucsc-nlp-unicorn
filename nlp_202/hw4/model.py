@@ -224,14 +224,6 @@ class BiLSTM_CRF(nn.Module):
             backpointers.append(bptrs_t)
 
         # Transition to STOP_TAG
-        if cost:
-            # get the cost score
-            cost_score = [
-                torch.tensor(cost(golds[-1], prev_tag))
-                for prev_tag in range(self.tagset_size)
-            ]
-            cost_score = torch.tensor(cost_score).unsqueeze(0).to(DEVICE)
-            forward_var = forward_var + cost_score
         terminal_var = forward_var + self.transitions[self.tag_to_ix[STOP_TAG]]
         best_tag_id = argmax(terminal_var)
         path_score = terminal_var[0][best_tag_id]
