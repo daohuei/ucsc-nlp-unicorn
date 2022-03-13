@@ -9,41 +9,6 @@ app = typer.Typer()
 
 
 @app.command()
-def free(
-    emb_dim: int = 5,
-    hidden_dim: int = 4,
-    epoch_num: int = 2,
-    batch_size: int = 2,
-    lr: float = 0.01,
-    lamb: float = 1e-4,
-    name: str = "model",
-):
-    pass
-    # sample = word_vocab.idx2token[72]
-    # print(sample)
-    # processed_sample = [char_vocab.token2idx[c] for c in sample]
-    # print(processed_sample)
-    # print("Max Length of words: ", max_word_len)
-    # processed_sample = padding_char(processed_sample, max_word_len)
-    # print(processed_sample)
-    # # batch * channel * sequence length
-    # processed_sample = torch.tensor(
-    #     processed_sample, dtype=torch.long
-    # ).unsqueeze(0)
-    # # print(processed_sample.unsqueeze(0).size())
-    # model = CharCNN(
-    #     max_word_len=max_word_len,
-    # )
-    # print(model(processed_sample))
-    # m = nn.Conv1d(16, 33, 3, stride=2)
-    # input = torch.randn(20, 16, 50)
-
-    # print(input.size())
-    # output = m(input)
-    # print(output.size())
-
-
-@app.command()
 def bi_lstm_crf(
     emb_dim: int = 5,
     hidden_dim: int = 4,
@@ -68,6 +33,8 @@ def bi_lstm_crf(
 def bi_lstm_crf_char_cnn(
     emb_dim: int = 5,
     char_emb_dim: int = 4,
+    stride: int = 2,
+    kernel: int = 2,
     hidden_dim: int = 4,
     epoch_num: int = 2,
     batch_size: int = 2,
@@ -78,6 +45,8 @@ def bi_lstm_crf_char_cnn(
     experiment(
         emb_dim=emb_dim,
         char_emb_dim=char_emb_dim,
+        char_cnn_stride=stride,
+        char_cnn_kernel=kernel,
         hidden_dim=hidden_dim,
         epoch_num=epoch_num,
         batch_size=batch_size,
@@ -107,6 +76,72 @@ def bi_lstm_crf_softmax_margin_loss(
         lamb=lamb,
         name=name,
         loss="softmax_margin_loss",
+    )
+
+
+@app.command()
+def bi_lstm_crf_svm_loss(
+    emb_dim: int = 5,
+    hidden_dim: int = 4,
+    epoch_num: int = 2,
+    batch_size: int = 2,
+    lr: float = 0.01,
+    lamb: float = 1e-4,
+    name: str = "bi_lstm_crf_svm_loss",
+):
+    experiment(
+        emb_dim=emb_dim,
+        hidden_dim=hidden_dim,
+        epoch_num=epoch_num,
+        batch_size=batch_size,
+        lr=lr,
+        lamb=lamb,
+        name=name,
+        loss="svm_loss",
+    )
+
+
+@app.command()
+def bi_lstm_crf_ramp_loss(
+    emb_dim: int = 5,
+    hidden_dim: int = 4,
+    epoch_num: int = 2,
+    batch_size: int = 2,
+    lr: float = 0.01,
+    lamb: float = 1e-4,
+    name: str = "bi_lstm_crf_ramp_loss",
+):
+    experiment(
+        emb_dim=emb_dim,
+        hidden_dim=hidden_dim,
+        epoch_num=epoch_num,
+        batch_size=batch_size,
+        lr=lr,
+        lamb=lamb,
+        name=name,
+        loss="ramp_loss",
+    )
+
+
+@app.command()
+def bi_lstm_crf_soft_ramp_loss(
+    emb_dim: int = 5,
+    hidden_dim: int = 4,
+    epoch_num: int = 2,
+    batch_size: int = 2,
+    lr: float = 0.01,
+    lamb: float = 1e-4,
+    name: str = "bi_lstm_crf_soft_ramp_loss",
+):
+    experiment(
+        emb_dim=emb_dim,
+        hidden_dim=hidden_dim,
+        epoch_num=epoch_num,
+        batch_size=batch_size,
+        lr=lr,
+        lamb=lamb,
+        name=name,
+        loss="soft_ramp_loss",
     )
 
 

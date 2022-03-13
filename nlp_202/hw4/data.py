@@ -132,7 +132,7 @@ train_data = load_data("A4-data/train")[:]
 dev_data = load_data("A4-data/dev.answers")[:]
 test_data = load_data("A4-data/test_answers/test.answers")[:]
 
-train_data = sample(train_data, 8)
+train_data = sample(train_data, 1000)
 dev_data = train_data
 test_data = train_data
 # dev_data = sample(dev_data, 2)

@@ -15,6 +15,8 @@ class BiLSTM_CRF(nn.Module):
         embedding_dim,
         hidden_dim,
         char_cnn=False,
+        char_cnn_stride=2,
+        char_cnn_kernel=2,
         char_embedding_dim=4,
         loss="crf_loss",
     ):
@@ -34,6 +36,9 @@ class BiLSTM_CRF(nn.Module):
 
         self.char_cnn_layer = CharCNN(
             max_word_len=max_word_len,
+            embedding_dim=char_embedding_dim,
+            kernel=char_cnn_kernel,
+            stride=char_cnn_stride,
         )
         self.lstm_input_dim = embedding_dim
         if char_cnn:
@@ -72,7 +77,7 @@ class BiLSTM_CRF(nn.Module):
             torch.randn(2, batch, self.hidden_dim // 2).to(DEVICE),
         )
 
-    def _forward_alg(self, feats, golds, cost):
+    def _forward_alg(self, feats, golds=None, cost=None):
         # Do the forward algorithm to compute the partition function
         init_alphas = torch.full((1, self.tagset_size), -10000.0).to(
             DEVICE
@@ -98,7 +103,7 @@ class BiLSTM_CRF(nn.Module):
                 # The ith entry of next_tag_var is the value for the
                 # edge (i -> next_tag) before we do log-sum-exp
                 next_tag_var = None
-                if self.loss_type == "softmax_margin_loss":
+                if cost is not None:
                     # generate log sum exp(score + cost)
                     next_tag_var = (
                         forward_var
@@ -176,7 +181,7 @@ class BiLSTM_CRF(nn.Module):
         score = score + self.transitions[self.tag_to_ix[STOP_TAG], tags[-1]]
         return score
 
-    def _viterbi_decode(self, feats):
+    def _viterbi_decode(self, feats, golds=None, cost=None):
         backpointers = []
 
         # Initialize the viterbi variables in log space
@@ -185,7 +190,7 @@ class BiLSTM_CRF(nn.Module):
 
         # forward_var at step i holds the viterbi variables for step i-1
         forward_var = init_vvars
-        for feat in feats:
+        for i, feat in enumerate(feats):
             bptrs_t = []  # holds the backpointers for this step
             viterbivars_t = []  # holds the viterbi variables for this step
 
@@ -195,7 +200,25 @@ class BiLSTM_CRF(nn.Module):
                 # from tag i to next_tag.
                 # We don't include the emission scores here because the max
                 # does not depend on them (we add them in below)
-                next_tag_var = forward_var + self.transitions[next_tag]
+                next_tag_var = None
+                if cost is not None:
+                    # get the cost score
+                    cost_score = [
+                        torch.tensor(cost(golds[i], prev_tag))
+                        for prev_tag in range(self.tagset_size)
+                    ]
+                    cost_score = (
+                        torch.tensor(cost_score).unsqueeze(0).to(DEVICE)
+                    )
+                    # add to the score
+                    next_tag_var = (
+                        forward_var + self.transitions[next_tag] + cost_score
+                    )
+                else:
+                    next_tag_var = forward_var + self.transitions[next_tag]
+
+                assert next_tag_var != None
+
                 best_tag_id = argmax(next_tag_var)
                 bptrs_t.append(best_tag_id)
                 viterbivars_t.append(next_tag_var[0][best_tag_id].view(1))
@@ -205,6 +228,14 @@ class BiLSTM_CRF(nn.Module):
             backpointers.append(bptrs_t)
 
         # Transition to STOP_TAG
+        if cost:
+            # get the cost score
+            cost_score = [
+                torch.tensor(cost(golds[-1], prev_tag))
+                for prev_tag in range(self.tagset_size)
+            ]
+            cost_score = torch.tensor(cost_score).unsqueeze(0).to(DEVICE)
+            forward_var = forward_var + cost_score
         terminal_var = forward_var + self.transitions[self.tag_to_ix[STOP_TAG]]
         best_tag_id = argmax(terminal_var)
         path_score = terminal_var[0][best_tag_id]
@@ -231,10 +262,38 @@ class BiLSTM_CRF(nn.Module):
         for i in range(feats_tensor.size()[0]):
             feats = feats_tensor[i, : seq_lens[i], :]
             tag_seq = tags[i, : seq_lens[i]]
-            forward_score = self._forward_alg(feats, tag_seq, cost)
-            gold_score = self._score_sentence(feats, tag_seq)
-            # log loss = - gold score + normalizer(log_sum)
-            current_loss = forward_score - gold_score
+            current_loss = None
+            if self.loss_type in "softmax_margin_loss":
+                # soft margin loss = - gold score + normalizer(log_sum_exp (score + cost))
+                forward_score = self._forward_alg(feats, tag_seq, cost)
+                gold_score = self._score_sentence(feats, tag_seq)
+                current_loss = forward_score - gold_score
+            elif self.loss_type == "svm_loss":
+                # svm loss = - gold score + max(score + cost)
+                viterbi_score, _ = self._viterbi_decode(feats, tag_seq, cost)
+                gold_score = self._score_sentence(feats, tag_seq)
+                current_loss = viterbi_score - gold_score
+            elif self.loss_type == "ramp_loss":
+                # ramp loss = - max(score) + max(score + cost)
+                viterbi_score, _ = self._viterbi_decode(feats)
+                viterbi_score_with_cost, _ = self._viterbi_decode(
+                    feats, tag_seq, cost
+                )
+                current_loss = viterbi_score_with_cost - viterbi_score
+            elif self.loss_type == "soft_ramp_loss":
+                # soft ramp loss = - log_sum_exp (score) + log_sum_exp (score + cost)
+                forward_score = self._forward_alg(feats)
+                forward_score_with_score = self._forward_alg(
+                    feats, tag_seq, cost
+                )
+                current_loss = forward_score_with_score - forward_score
+            else:
+                # crf loss = - gold score + normalizer(log_sum_exp (score))
+                forward_score = self._forward_alg(feats, tag_seq)
+                gold_score = self._score_sentence(feats, tag_seq)
+                current_loss = forward_score - gold_score
+
+            assert current_loss != None
             loss = loss + current_loss
         return loss
 
@@ -257,6 +316,7 @@ class CharCNN(nn.Module):
     def __init__(
         self,
         stride=2,
+        kernel=2,
         embedding_dim=4,
         max_word_len=20,
     ):
@@ -271,7 +331,7 @@ class CharCNN(nn.Module):
         self.dropout = nn.Dropout(0.25)
 
         # CNN parameters definition
-        self.kernel = 2
+        self.kernel = kernel
         self.stride = stride
         self.padding = self.kernel - 1
 

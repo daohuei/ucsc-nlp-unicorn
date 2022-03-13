@@ -22,6 +22,8 @@ tag_to_ix = tag_vocab.token2idx
 def experiment(
     emb_dim=5,
     char_emb_dim=4,
+    char_cnn_stride=2,
+    char_cnn_kernel=2,
     hidden_dim=4,
     epoch_num=2,
     batch_size=2,
@@ -44,6 +46,8 @@ def experiment(
         emb_dim,
         hidden_dim,
         char_cnn=char_cnn,
+        char_cnn_stride=char_cnn_stride,
+        char_cnn_kernel=char_cnn_kernel,
         char_embedding_dim=char_emb_dim,
         loss=loss,
     ).to(DEVICE)
