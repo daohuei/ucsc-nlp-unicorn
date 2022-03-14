@@ -18,6 +18,7 @@ def bi_lstm_crf(
     lr: float = 0.01,
     lamb: float = 1e-4,
     resume: bool = False,
+    cost_val: int = 10,
 ):
     experiment(
         emb_dim=emb_dim,
@@ -28,6 +29,7 @@ def bi_lstm_crf(
         lamb=lamb,
         name=name,
         resume=resume,
+        cost_val=cost_val,
     )
 
 
@@ -44,6 +46,7 @@ def bi_lstm_crf_char_cnn(
     lr: float = 0.01,
     lamb: float = 1e-4,
     resume: bool = False,
+    cost_val: int = 10,
 ):
     experiment(
         emb_dim=emb_dim,
@@ -58,6 +61,7 @@ def bi_lstm_crf_char_cnn(
         name=name,
         char_cnn=True,
         resume=resume,
+        cost_val=cost_val,
     )
 
 
@@ -71,6 +75,7 @@ def bi_lstm_crf_softmax_margin_loss(
     lr: float = 0.01,
     lamb: float = 1e-4,
     resume: bool = False,
+    cost_val: int = 10,
 ):
     experiment(
         emb_dim=emb_dim,
@@ -82,6 +87,7 @@ def bi_lstm_crf_softmax_margin_loss(
         name=name,
         loss="softmax_margin_loss",
         resume=resume,
+        cost_val=cost_val,
     )
 
 
@@ -95,6 +101,7 @@ def bi_lstm_crf_svm_loss(
     lr: float = 0.01,
     lamb: float = 1e-4,
     resume: bool = False,
+    cost_val: int = 10,
 ):
     experiment(
         emb_dim=emb_dim,
@@ -106,6 +113,7 @@ def bi_lstm_crf_svm_loss(
         name=name,
         loss="svm_loss",
         resume=resume,
+        cost_val=cost_val,
     )
 
 
@@ -119,6 +127,7 @@ def bi_lstm_crf_ramp_loss(
     lr: float = 0.01,
     lamb: float = 1e-4,
     resume: bool = False,
+    cost_val: int = 10,
 ):
     experiment(
         emb_dim=emb_dim,
@@ -130,6 +139,7 @@ def bi_lstm_crf_ramp_loss(
         name=name,
         loss="ramp_loss",
         resume=resume,
+        cost_val=cost_val,
     )
 
 
@@ -143,6 +153,7 @@ def bi_lstm_crf_soft_ramp_loss(
     lr: float = 0.01,
     lamb: float = 1e-4,
     resume: bool = False,
+    cost_val: int = 10,
 ):
     experiment(
         emb_dim=emb_dim,
@@ -154,6 +165,7 @@ def bi_lstm_crf_soft_ramp_loss(
         name=name,
         loss="soft_ramp_loss",
         resume=resume,
+        cost_val=cost_val,
     )
 
 

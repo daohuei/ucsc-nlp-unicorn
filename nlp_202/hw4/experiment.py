@@ -1,6 +1,5 @@
 import torch
 import torch.optim as optim
-import torch.autograd as autograd
 
 from model import BiLSTM_CRF
 from evaluate import (
@@ -19,6 +18,7 @@ from data import (
     tag_vocab,
 )
 from constants import DEVICE
+from helper import hamming_loss
 
 word_to_ix = word_vocab.token2idx
 tag_to_ix = tag_vocab.token2idx
@@ -38,6 +38,7 @@ def experiment(
     char_cnn=False,
     loss="crf_loss",
     resume=False,
+    cost_val=10,
 ):
 
     # use data loader for batching data
@@ -64,6 +65,7 @@ def experiment(
         char_cnn_kernel=char_cnn_kernel,
         char_embedding_dim=char_emb_dim,
         loss=loss,
+        cost=hamming_loss(loss_val=cost_val),
     ).to(DEVICE)
 
     prev_best_score = None

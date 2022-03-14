@@ -19,6 +19,7 @@ class BiLSTM_CRF(nn.Module):
         char_cnn_kernel=2,
         char_embedding_dim=4,
         loss="crf_loss",
+        cost=hamming_loss(),
     ):
         super(BiLSTM_CRF, self).__init__()
         self.embedding_dim = embedding_dim
@@ -29,6 +30,7 @@ class BiLSTM_CRF(nn.Module):
         self.char_cnn = char_cnn
         self.max_word_len = max_word_len
         self.loss_type = loss
+        self.cost = cost
 
         self.word_embeds = nn.Embedding(
             vocab_size, embedding_dim, padding_idx=0
@@ -239,9 +241,7 @@ class BiLSTM_CRF(nn.Module):
         best_path.reverse()
         return path_score, best_path
 
-    def neg_log_likelihood(
-        self, sentence, tags, seq_lens, cost=hamming_loss()
-    ):
+    def neg_log_likelihood(self, sentence, tags, seq_lens):
         # loss function: negative log likelihood
         # emission score: seq_len x batch_size x len(tag_set)
         feats_tensor = self._get_lstm_features(sentence, seq_lens)
@@ -253,28 +253,30 @@ class BiLSTM_CRF(nn.Module):
             current_loss = None
             if self.loss_type in "softmax_margin_loss":
                 # soft margin loss = - gold score + normalizer(log_sum_exp (score + cost))
-                forward_score = self._forward_alg(feats, tag_seq, cost)
+                forward_score = self._forward_alg(feats, tag_seq, self.cost)
                 gold_score = self._score_sentence(feats, tag_seq)
                 current_loss = forward_score - gold_score
             elif self.loss_type == "svm_loss":
                 # svm loss = - gold score + max(score + cost)
-                viterbi_score, _ = self._viterbi_decode(feats, tag_seq, cost)
+                viterbi_score, _ = self._viterbi_decode(
+                    feats, tag_seq, self.cost
+                )
                 gold_score = self._score_sentence(feats, tag_seq)
                 current_loss = viterbi_score - gold_score
             elif self.loss_type == "ramp_loss":
                 # ramp loss = - max(score) + max(score + cost)
                 viterbi_score, _ = self._viterbi_decode(feats)
                 viterbi_score_with_cost, _ = self._viterbi_decode(
-                    feats, tag_seq, cost
+                    feats, tag_seq, self.cost
                 )
                 current_loss = viterbi_score_with_cost - viterbi_score
             elif self.loss_type == "soft_ramp_loss":
                 # soft ramp loss = - log_sum_exp (score) + log_sum_exp (score + cost)
                 forward_score = self._forward_alg(feats)
-                forward_score_with_score = self._forward_alg(
-                    feats, tag_seq, cost
+                forward_score_with_cost = self._forward_alg(
+                    feats, tag_seq, self.cost
                 )
-                current_loss = forward_score_with_score - forward_score
+                current_loss = forward_score_with_cost - forward_score
             else:
                 # crf loss = - gold score + normalizer(log_sum_exp (score))
                 forward_score = self._forward_alg(feats, tag_seq)
