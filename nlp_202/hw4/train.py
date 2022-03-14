@@ -8,15 +8,20 @@ from helper import unpad_sequence, convert_batch_sequence
 from data import tag_vocab
 from evaluate import batch_evaluate
 
-EARLY_STOPPING_THRES = 10
+EARLY_STOPPING_THRES = 3
 
 
 def train(
-    model, optimizer, train_loader, dev_loader, epoch_num, name="model_name"
+    model,
+    optimizer,
+    train_loader,
+    dev_loader,
+    epoch_num,
+    name="model_name",
+    prev_best_score=None,
 ):
     # record loss in every epoch for train and dev set for plotting
     avg_train_epoch_losses = []
-    avg_dev_epoch_losses = []
     train_epoch_times = []
 
     # plotting loss over time for debugging training process
@@ -24,6 +29,8 @@ def train(
 
     # best score: precision, recall, f-1
     best_score = (float("-inf"), float("-inf"), float("-inf"))
+    if prev_best_score:
+        best_score = prev_best_score
 
     # for checking early stopping
     no_improve_count = 0

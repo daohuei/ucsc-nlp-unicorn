@@ -65,14 +65,26 @@ def experiment(
         char_embedding_dim=char_emb_dim,
         loss=loss,
     ).to(DEVICE)
+
+    prev_best_score = None
     if resume:
         model.load_state_dict(torch.load(f"{name}.pt", map_location=DEVICE))
+        dev_all_input, dev_all_preds, dev_all_golds = inference(
+            model, dev_loader
+        )
+        prev_best_score = batch_evaluate(dev_all_golds, dev_all_preds)
     # optimizer = optim.SGD(model.parameters(), lr=lr, weight_decay=lamb)
     optimizer = optim.Adam(model.parameters(), lr=0.1, weight_decay=lamb)
 
     print("======================Training Model=================")
     (model, train_epoch_times) = train(
-        model, optimizer, train_loader, dev_loader, epoch_num, name=name
+        model,
+        optimizer,
+        train_loader,
+        dev_loader,
+        epoch_num,
+        name=name,
+        prev_best_score=prev_best_score,
     )
 
     print("======================Evaluating Model=================")
