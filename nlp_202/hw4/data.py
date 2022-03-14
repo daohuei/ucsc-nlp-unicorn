@@ -107,8 +107,7 @@ def make_data_point(sent):
 
 def load_data(filename):
     return [
-        (data["tokens"], data["gold_tags"])
-        for data in read_data("A4-data/train")
+        (data["tokens"], data["gold_tags"]) for data in read_data(filename)
     ]
 
 
