@@ -11,7 +11,7 @@ def batch_evaluate(golds, preds, verbose=True):
     all_golds = [tag for gold in golds for tag in gold]
     all_preds = [tag for pred in preds for tag in pred]
 
-    return evaluate(all_golds, all_preds)
+    return evaluate(all_golds, all_preds, verbose)
 
 
 def evaluate(all_gold_tags, all_predicted_tags, verbose=True):
