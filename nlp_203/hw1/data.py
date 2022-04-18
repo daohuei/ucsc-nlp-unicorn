@@ -119,9 +119,9 @@ def load_data(split, line_constraint=None, truncate=False):
 
 print_stage("Loading Data")
 # Make up some training data
-train_data = load_data("train", 4)[:]
-dev_data = train_data.copy()
-# dev_data = load_data("dev", 10)[:]
+
+train_data = load_data("train", line_constraint=2, truncate=False)[:]
+dev_data = load_data("dev", 2)[:]
 test_data = load_data("test", 2)[:]
 
 train_set = CNNDailyMailDataset(train_data)
@@ -146,7 +146,12 @@ def text_pipeline(sentence, truncate_size=TRUNCATE_SIZE):
 def collate_batch(batch):
     summary_list, text_list, index_list = [], [], []
     for _text, _summary, _index in batch:
-        text_list.append(torch.tensor(text_pipeline(_text), dtype=torch.long))
+        text_list.append(
+            torch.tensor(
+                text_pipeline(_text, truncate_size=100),
+                dtype=torch.long,
+            )
+        )
         summary_list.append(
             torch.tensor(
                 text_pipeline(_summary, truncate_size=len(_summary)),
