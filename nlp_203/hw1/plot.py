@@ -21,16 +21,17 @@ def init_report():
     return {metric: [] for metric in METRICS}
 
 
-def init_fig(title, x_label, y_label):
+def init_fig(title, x_label, y_label, legend=True):
 
     fig, ax = plt.subplots(1, 1, figsize=(15, 5))
     # ax.set_ylim([0, 100000])
     ax.set_title(title)
     ax.set_xlabel(x_label)
     ax.set_ylabel(y_label)
-    ax.plot([], [], SPLIT_COLOR_MAP["train"], label=f"train {y_label}")
-    ax.plot([], [], SPLIT_COLOR_MAP["dev"], label=f"dev {y_label}")
-    ax.legend()
+    if legend:
+        ax.plot([], [], SPLIT_COLOR_MAP["train"], label=f"train {y_label}")
+        ax.plot([], [], SPLIT_COLOR_MAP["dev"], label=f"dev {y_label}")
+        ax.legend()
     return fig, ax
 
 
@@ -39,7 +40,9 @@ fig_ppl, ax_ppl = init_fig("Perplexity per Epoch", "Epoch", "PPL")
 
 rouge_plot = {}
 for k in ["1", "2", "l"]:
-    rouge_plot[k] = init_fig(f"Rouge-{k} per Epoch", "Epoch", f"Rouge-{k}")
+    rouge_plot[k] = init_fig(
+        f"Rouge-{k} per Epoch", "Epoch", f"Rouge-{k}", False
+    )
 
 
 def plot_loss_ppl(report, split, periodically=False):
@@ -62,15 +65,18 @@ def plot_rouge(report, split, periodically=False):
     color = SPLIT_COLOR_MAP[split]
 
     for k in ["1", "2", "l"]:
+        rouge_fig, rouge_ax = rouge_plot[k]
         for m in ["precision", "recall", "f1"]:
             key = f"rouge-{k}-{m}"
             y_values = report[key]
 
-            rouge_fig, rouge_ax = rouge_plot[k]
             rouge_ax.plot(
                 epochs,
                 y_values,
                 f"{color}{LINE_STYLE_MAP[m]}",
                 label=f"{split}-{key}",
             )
-            rouge_fig.savefig(f"{key}_fig.jpg")
+        if not rouge_ax.get_legend():
+            rouge_ax.legend()
+
+        rouge_fig.savefig(f"rouge-{k}_fig.jpg")

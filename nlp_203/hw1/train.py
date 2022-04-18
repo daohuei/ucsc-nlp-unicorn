@@ -1,14 +1,18 @@
 import math
 import time
+
 import torch
 import torch.nn as nn
 import torch.optim as optim
+from tqdm import tqdm
 
 from constant import DEVICE
 from model import Attention, Encoder, Decoder, Seq2Seq
-from data import get_data_loader, word_vocab
-from helper import epoch_time, print_stage
-from plot import init_report, plot_loss_ppl
+from data import get_data_loader, word_vocab, dev_data, test_data
+from helper import epoch_time, print_stage, write_predictions, write_scores
+from evaluate import calculate_rouges
+from plot import init_report, plot_loss_ppl, plot_rouge
+from inference import inference
 
 
 def init_weights(m):
@@ -23,7 +27,7 @@ def count_parameters(model):
     return sum(p.numel() for p in model.parameters() if p.requires_grad)
 
 
-def training_pipeline():
+def training_pipeline(name="seq2seq"):
     print_stage("Modeling")
     INPUT_DIM = len(word_vocab)
     OUTPUT_DIM = len(word_vocab)
@@ -62,10 +66,15 @@ def training_pipeline():
 
     # Load the data loader
     train_loader = get_data_loader(BATCH_SIZE, "train")
-    # val_loader = get_data_loader(BATCH_SIZE, "dev")
-    # test_loader = get_data_loader(BATCH_SIZE, "test")
+    val_loader = get_data_loader(BATCH_SIZE, "dev")
+    test_loader = get_data_loader(1, "test")
+
+    dev_golds = dev_data.apply(lambda data: " ".join(data[1][1:])).tolist()
+    test_golds = test_data.apply(lambda data: " ".join(data[1][1:])).tolist()
 
     best_valid_loss = float("inf")
+    best_dev_predictions = []
+    best_dev_scores = None
     train_report = init_report()
     valid_report = init_report()
 
@@ -74,15 +83,29 @@ def training_pipeline():
         start_time = time.time()
 
         train_loss = train(model, train_loader, optimizer, criterion, CLIP)
-        valid_loss, _ = evaluate(model, val_loader, criterion, is_score=True)
+        valid_loss, dev_output = evaluate(model, val_loader, criterion)
 
         end_time = time.time()
 
         epoch_mins, epoch_secs = epoch_time(start_time, end_time)
 
+        dev_predictions = []
+        for dev_pred in dev_output:
+            dev_pred_indexes = dev_pred.argmax(1)
+            dev_pred = [
+                word_vocab.lookup_token(idx.item()) for idx in dev_pred_indexes
+            ]
+            dev_pred_str = " ".join(dev_pred[1:])
+            dev_predictions.append(dev_pred_str)
+        rouge_scores = calculate_rouges(dev_predictions, dev_golds)
+
         if valid_loss < best_valid_loss:
             best_valid_loss = valid_loss
-            torch.save(model.state_dict(), "tut4-model.pt")
+            best_dev_predictions = dev_predictions
+            best_dev_scores = rouge_scores
+            write_predictions(best_dev_predictions, "dev", name)
+            write_scores(best_dev_scores, "dev", name)
+            torch.save(model.state_dict(), f"{name}-best-model.pt")
 
         train_ppl = math.exp(train_loss)
         train_report["epoch"].append(epoch)
@@ -96,24 +119,24 @@ def training_pipeline():
         valid_report["perplexity"].append(valid_ppl)
         plot_loss_ppl(valid_report, "dev", True)
 
-        # for k in ["1", "2", "l"]:
-        #     for m in ["precision", "recall", "f1"]:
-        #         valid_report[f"rouge-{k}-{m}"].append(
-        #             rouge_scores[f"rouge-{k}-{m[0]}"]
-        #         )
-        # plot_rouge(valid_report, "dev", True)
+        for k in ["1", "2", "l"]:
+            for m in ["precision", "recall", "f1"]:
+                valid_report[f"rouge-{k}-{m}"].append(
+                    rouge_scores[f"rouge-{k}-{m[0]}"]
+                )
 
         print(f"Epoch: {epoch+1:02} | Time: {epoch_mins}m {epoch_secs}s")
         print(f"\tTrain Loss: {train_loss:.3f} | Train PPL: {train_ppl:7.3f}")
         print(f"\t Val. Loss: {valid_loss:.3f} |  Val. PPL: {valid_ppl:7.3f}")
 
-    # model.load_state_dict(torch.load("tut4-model.pt"))
+        plot_rouge(valid_report, "dev", True)
 
-    # test_loss = evaluate(model, test_loader, criterion)
-
-    # print(
-    #     f"| Test Loss: {test_loss:.3f} | Test PPL: {math.exp(test_loss):7.3f} |"
-    # )
+    print_stage("Evaluate Test Set")
+    model.load_state_dict(torch.load(f"{name}-best-model.pt"))
+    test_predictions = inference(model, test_loader, DEVICE)
+    test_scores = calculate_rouges(test_predictions, test_golds)
+    write_predictions(test_predictions, "test", name)
+    write_scores(test_scores, "test", name)
 
 
 # train the model
@@ -122,7 +145,7 @@ def train(model, loader, optimizer, criterion, clip):
 
     epoch_loss = 0
 
-    for _, batch in enumerate(loader):
+    for batch in tqdm(loader):
 
         text, summary, text_len, _ = batch
 
@@ -185,11 +208,10 @@ def evaluate(model, loader, criterion):
     model.eval()
 
     epoch_loss = 0
-
+    outputs = []
     with torch.no_grad():
 
-        for _, batch in enumerate(loader):
-
+        for batch in tqdm(loader):
             text, summary, text_len, _ = batch
 
             # loaded data shape:
@@ -210,6 +232,8 @@ def evaluate(model, loader, criterion):
             output_dim = output.shape[-1]
             # output = [summary len, batch size, decoder output dim]
             # pred_tokens = output.argmax(-1)
+            for batch_idx in range(batch_size):
+                outputs.append(output[:, batch_idx, :])
 
             # remove START token and combine batch and seq len dim
             output = output[1:].view(-1, output_dim)
@@ -223,7 +247,7 @@ def evaluate(model, loader, criterion):
 
             epoch_loss += loss.item()
 
-    return epoch_loss / len(loader)
+    return epoch_loss / len(loader), outputs
 
 
 if __name__ == "__main__":

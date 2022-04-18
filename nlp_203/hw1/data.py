@@ -87,7 +87,11 @@ def reverse_map(_map):
 
 
 def add_special_tokens(tokens):
-    return [START] + tokens + [STOP]
+    return (
+        [START]
+        + [str(token) for token in list(spacy_en.tokenizer(tokens))]
+        + [STOP]
+    )
 
 
 def build_data_points(data_df):
@@ -115,9 +119,10 @@ def load_data(split, line_constraint=None, truncate=False):
 
 print_stage("Loading Data")
 # Make up some training data
-train_data = load_data("train", 20)[:]
-dev_data = load_data("dev", 10)[:]
-test_data = load_data("test", 1)[:]
+train_data = load_data("train", 1)[:]
+dev_data = train_data.copy()
+# dev_data = load_data("dev", 10)[:]
+test_data = load_data("test", 2)[:]
 
 train_set = CNNDailyMailDataset(train_data)
 dev_set = CNNDailyMailDataset(dev_data)
@@ -143,7 +148,10 @@ def collate_batch(batch):
     for _text, _summary, _index in batch:
         text_list.append(torch.tensor(text_pipeline(_text), dtype=torch.long))
         summary_list.append(
-            torch.tensor(text_pipeline(_summary), dtype=torch.long)
+            torch.tensor(
+                text_pipeline(_summary, truncate_size=len(_summary)),
+                dtype=torch.long,
+            )
         )
         index_list.append(torch.tensor(_index, dtype=torch.long))
 

@@ -6,8 +6,6 @@ rouge = Rouge()
 
 def calculate_rouges(preds, golds):
     result = {}
-    print(len(preds))
-    print(len(golds))
     scores = rouge.get_scores(preds, golds)
     score_df = pd.DataFrame(scores)
     for k in ["1", "2", "l"]:
