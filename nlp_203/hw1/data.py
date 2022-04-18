@@ -119,7 +119,7 @@ def load_data(split, line_constraint=None, truncate=False):
 
 print_stage("Loading Data")
 # Make up some training data
-train_data = load_data("train", 1)[:]
+train_data = load_data("train", 4)[:]
 dev_data = train_data.copy()
 # dev_data = load_data("dev", 10)[:]
 test_data = load_data("test", 2)[:]
@@ -158,7 +158,7 @@ def collate_batch(batch):
     len_list = torch.tensor(list(map(len, text_list)), dtype=torch.long)
     text_list = pad_sequence(text_list, batch_first=True, padding_value=0)
     summary_list = pad_sequence(
-        summary_list, batch_first=True, padding_value=-1
+        summary_list, batch_first=True, padding_value=0
     )
     index_list = torch.tensor(index_list, dtype=torch.long)
 
