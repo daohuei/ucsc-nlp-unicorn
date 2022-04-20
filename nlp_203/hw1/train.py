@@ -6,7 +6,17 @@ import torch.nn as nn
 import torch.optim as optim
 from tqdm import tqdm
 
-from constant import DEVICE
+from constant import (
+    DEVICE,
+    BATCH_SIZE,
+    NAME,
+    ENC_EMB_DIM,
+    DEC_EMB_DIM,
+    ENC_HID_DIM,
+    DEC_HID_DIM,
+    ENC_DROPOUT,
+    DEC_DROPOUT,
+)
 from model import Attention, Encoder, Decoder, Seq2Seq
 from data import get_data_loader, word_vocab, dev_data, test_data
 from helper import epoch_time, print_stage, write_predictions, write_scores
@@ -31,12 +41,6 @@ def training_pipeline(name="seq2seq"):
     print_stage("Modeling")
     INPUT_DIM = len(word_vocab)
     OUTPUT_DIM = len(word_vocab)
-    ENC_EMB_DIM = 256  # 256
-    DEC_EMB_DIM = 256  # 256
-    ENC_HID_DIM = 512  # 512
-    DEC_HID_DIM = 512  # 512
-    ENC_DROPOUT = 0.5
-    DEC_DROPOUT = 0.5
     SRC_PAD_IDX = 0
     TRG_PAD_IDX = 0
 
@@ -59,10 +63,9 @@ def training_pipeline(name="seq2seq"):
     optimizer = optim.Adam(model.parameters())
     criterion = nn.CrossEntropyLoss(ignore_index=TRG_PAD_IDX)
 
-    print_stage("Training")
-    N_EPOCHS = 100
+    print_stage(f"Training {name}")
+    N_EPOCHS = 10
     CLIP = 1
-    BATCH_SIZE = 4
 
     # Load the data loader
     train_loader = get_data_loader(BATCH_SIZE, "train")
@@ -111,13 +114,13 @@ def training_pipeline(name="seq2seq"):
         train_report["epoch"].append(epoch)
         train_report["loss"].append(train_loss)
         train_report["perplexity"].append(train_ppl)
-        plot_loss_ppl(train_report, "train", True)
+        plot_loss_ppl(train_report, "train", False, name)
 
         valid_ppl = math.exp(valid_loss)
         valid_report["epoch"].append(epoch)
         valid_report["loss"].append(valid_loss)
         valid_report["perplexity"].append(valid_ppl)
-        plot_loss_ppl(valid_report, "dev", True)
+        plot_loss_ppl(valid_report, "dev", False, name)
 
         for k in ["1", "2", "l"]:
             for m in ["precision", "recall", "f1"]:
@@ -129,7 +132,7 @@ def training_pipeline(name="seq2seq"):
         print(f"\tTrain Loss: {train_loss:.3f} | Train PPL: {train_ppl:7.3f}")
         print(f"\t Val. Loss: {valid_loss:.3f} |  Val. PPL: {valid_ppl:7.3f}")
 
-        plot_rouge(valid_report, "dev", True)
+        plot_rouge(valid_report, "dev", False, name)
 
     print_stage("Evaluate Test Set")
     model.load_state_dict(torch.load(f"{name}-best-model.pt"))
@@ -251,4 +254,5 @@ def evaluate(model, loader, criterion):
 
 
 if __name__ == "__main__":
-    training_pipeline()
+    print_stage(NAME)
+    training_pipeline(NAME)

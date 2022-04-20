@@ -45,7 +45,7 @@ for k in ["1", "2", "l"]:
     )
 
 
-def plot_loss_ppl(report, split, periodically=False):
+def plot_loss_ppl(report, split, periodically=False, name="seq2seq"):
     epochs = report["epoch"]
     if periodically and len(epochs) % 10 != 0:
         return
@@ -54,11 +54,11 @@ def plot_loss_ppl(report, split, periodically=False):
     ppls = report["perplexity"]
     ax_loss.plot(epochs, losses, f"{color}", label=f"{split}-loss")
     ax_ppl.plot(epochs, ppls, f"{color}", label=f"{split}-ppl")
-    fig_loss.savefig("loss_fig.jpg")
-    fig_ppl.savefig("ppl_fig.jpg")
+    fig_loss.savefig(f"{name}_loss_fig.jpg")
+    fig_ppl.savefig(f"{name}_ppl_fig.jpg")
 
 
-def plot_rouge(report, split, periodically=False):
+def plot_rouge(report, split, periodically=False, name="seq2seq"):
     epochs = report["epoch"]
     if periodically and len(epochs) % 10 != 0:
         return
@@ -79,4 +79,4 @@ def plot_rouge(report, split, periodically=False):
         if not rouge_ax.get_legend():
             rouge_ax.legend()
 
-        rouge_fig.savefig(f"rouge-{k}_fig.jpg")
+        rouge_fig.savefig(f"{name}_rouge-{k}_fig.jpg")

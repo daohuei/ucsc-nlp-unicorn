@@ -16,6 +16,8 @@ from constant import (
     UNK_TOKEN,
     DEVICE,
     TRUNCATE_SIZE,
+    MAX_VOCAB_SIZE,
+    LEAST_FREQ,
 )
 
 spacy_en = spacy.load("en_core_web_sm")
@@ -39,7 +41,7 @@ class CNNDailyMailDataset(Dataset):
 
 
 class Vocab:
-    def __init__(self, tokens, base_map={}, max_size=None):
+    def __init__(self, tokens, base_map={}, max_size=None, least_freq=0):
         self.token2idx = base_map
         # count the word/token/tags frequency
         self.freq = Counter(
@@ -48,9 +50,11 @@ class Vocab:
 
         vocab_size = 0
         # store the token start from higher frequency
-        for word, _ in sorted(
+        for word, count in sorted(
             self.freq.items(), key=lambda item: item[1], reverse=True
         ):
+            if count < least_freq:
+                break
             # if vocab size is larger than max size, stop inserting words into vocab
             if max_size is not None and vocab_size > max_size:
                 break
@@ -87,11 +91,7 @@ def reverse_map(_map):
 
 
 def add_special_tokens(tokens):
-    return (
-        [START]
-        + [str(token) for token in list(spacy_en.tokenizer(tokens))]
-        + [STOP]
-    )
+    return [START] + tokens.split() + [STOP]
 
 
 def build_data_points(data_df):
@@ -113,27 +113,36 @@ def load_data(split, line_constraint=None, truncate=False):
     )
     outputs = read_files(TGT_FILENAME[split], line_constraint)
     df = pd.DataFrame({"text": inputs, "summary": outputs})
+    max_len_summary = max(
+        outputs, key=lambda summary: len(summary.split())
+    ).split()
+    max_len = len(max_len_summary)
     data_point_df = build_data_points(df)
-    return data_point_df
+    return data_point_df, max_len
 
 
-print_stage("Loading Data")
-# Make up some training data
+print_stage("Loading Training Data")
+train_data, _ = load_data("train")[:]
+print_stage("Loading Dev Data")
+dev_data, dev_summary_max_len = load_data("dev")[:]
+print_stage("Loading Test Data")
+test_data, test_summary_max_len = load_data("test")[:]
 
-train_data = load_data("train", line_constraint=2, truncate=False)[:]
-dev_data = load_data("dev", 2)[:]
-test_data = load_data("test", 2)[:]
+summary_max_len = max(dev_summary_max_len, test_summary_max_len)
 
 train_set = CNNDailyMailDataset(train_data)
 dev_set = CNNDailyMailDataset(dev_data)
 test_set = CNNDailyMailDataset(test_data)
 
+print_stage("Building Vocab")
 word_vocab = Vocab(
     train_set.X + train_set.y,
     base_map={PADDING: 0, UNK_TOKEN: 1},
-    max_size=50000,
+    max_size=MAX_VOCAB_SIZE,
+    least_freq=LEAST_FREQ,
 )
 
+print("Vocab Length=", len(word_vocab))
 
 # text preprocess pipeline
 def text_pipeline(sentence, truncate_size=TRUNCATE_SIZE):
@@ -146,12 +155,7 @@ def text_pipeline(sentence, truncate_size=TRUNCATE_SIZE):
 def collate_batch(batch):
     summary_list, text_list, index_list = [], [], []
     for _text, _summary, _index in batch:
-        text_list.append(
-            torch.tensor(
-                text_pipeline(_text, truncate_size=100),
-                dtype=torch.long,
-            )
-        )
+        text_list.append(torch.tensor(text_pipeline(_text), dtype=torch.long,))
         summary_list.append(
             torch.tensor(
                 text_pipeline(_summary, truncate_size=len(_summary)),
