@@ -24,6 +24,10 @@ from evaluate import calculate_rouges
 from plot import init_report, plot_loss_ppl, plot_rouge
 from inference import inference
 
+torch.manual_seed(SEED)
+torch.cuda.manual_seed(SEED)
+torch.backends.cudnn.deterministic = True
+
 
 def init_weights(m):
     for name, param in m.named_parameters():
