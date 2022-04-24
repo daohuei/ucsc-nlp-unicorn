@@ -63,7 +63,7 @@ def training_pipeline(name):
         start_time = time.time()
 
         train_loss = train(model, train_dataloader, optimizer, lr_scheduler)
-        dev_loss = evaluate(model, dev_dataloader)
+        dev_loss, dev_output = evaluate(model, dev_dataloader)
 
         end_time = time.time()
 
@@ -138,7 +138,7 @@ def evaluate(model, loader):
 
     # only being used in intent multi-label classification task
     bce_criterion = torch.nn.BCELoss()
-
+    output_list = []
     with torch.no_grad():
         for batch in tqdm(loader):
             batch = {k: v.to(DEVICE) for k, v in batch.items()}
@@ -150,8 +150,10 @@ def evaluate(model, loader):
             outputs = None
             if TASK == "slot":
                 outputs = model(**batch)
+                output_val = outputs.logits
             elif TASK == "intent":
                 outputs = model(X, mask)
+                output_val = outputs
 
             # calculating loss
             loss = None
@@ -163,9 +165,12 @@ def evaluate(model, loader):
                 loss = bce_criterion(outputs, y.type(torch.float))
             assert loss != None
 
+            for batch_idx in range(output_val.shape[0]):
+                output_list.append(output_val[batch_idx, :, :])
+
             epoch_loss += loss.item()
 
-    return epoch_loss / len(loader)
+    return epoch_loss / len(loader), output_list
 
 
 if __name__ == "__main__":
