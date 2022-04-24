@@ -1,6 +1,6 @@
 from collections import Counter
 
-from constant import UNK_TOKEN
+from config import UNK_TOKEN
 
 
 class Vocab:

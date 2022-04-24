@@ -5,9 +5,12 @@ import pandas as pd
 import numpy as np
 from torch.utils.data import DataLoader
 from datasets import Dataset
-from transformers import AutoTokenizer, DataCollatorWithPadding
+from transformers import (
+    AutoTokenizer,
+    DataCollatorWithPadding,
+)
 
-from constant import DATA_PATH, SEED, TASK, MODEL, BATCH_SIZE
+from config import DATA_PATH, SEED, TASK, MODEL, BATCH_SIZE
 from vocab import Vocab
 
 np.random.seed(SEED)
@@ -237,9 +240,10 @@ def balance_slot_data(df):
 
 
 def prepare_dataset(df_dict, label_key):
-    train_df = df_dict["train"]
-    dev_df = df_dict["dev"]
-    test_df = df_dict["test"]
+    train_df = df_dict["train"].loc[:4]
+    dev_df = train_df.copy()
+    # dev_df = df_dict["dev"]
+    test_df = df_dict["test"].loc[:2]
 
     train_movie_dataset = Dataset.from_pandas(
         train_df[["utterances", label_key]],
@@ -261,9 +265,11 @@ df_dict = load_data()
 slot_vocab = Vocab(
     df_dict["slot"]["train"]["IOB Slot tags"].tolist(), base_map={}
 )
+intent_vocab = Vocab(
+    df_dict["intent"]["train"]["Core Relations"].tolist(), base_map={}
+)
 
 train_set, dev_set, test_set = None, None, None
-pretrained_tokenizer = None
 if TASK == "slot":
     train_set, dev_set, test_set = prepare_dataset(
         df_dict["slot"], "IOB Slot tags"
@@ -273,26 +279,56 @@ elif TASK == "intent":
         df_dict["intent"], "Core Relations"
     )
 
+pretrained_tokenizer = None
 if MODEL == "distil_bert":
     pretrained_tokenizer = AutoTokenizer.from_pretrained(
         "distilbert-base-uncased"
     )
+elif MODEL == "albert":
+    pretrained_tokenizer = AutoTokenizer.from_pretrained("albert-base-v2")
 
 data_collator = DataCollatorWithPadding(tokenizer=pretrained_tokenizer)
 
 
 def prepare_slot_dataset(dataset, tokenizer, split):
-    tokenized_set = dataset.map(
-        slot_tokenize(tokenizer, slot_vocab, split), batched=True
-    )
-    tokenized_set = tokenized_set.remove_columns(
-        ["utterances", "IOB Slot tags"]
-    )
+    tokenized_set = None
+    if split == "test":
+        tokenized_set = dataset.map(test_tokenize(tokenizer), batched=True)
+        tokenized_set = tokenized_set.remove_columns(["utterances"])
+    else:
+        if TASK == "slot":
+            tokenized_set = dataset.map(slot_tokenize(tokenizer), batched=True)
+            tokenized_set = tokenized_set.remove_columns(
+                ["utterances", "IOB Slot tags"]
+            )
+        elif TASK == "intent":
+            tokenized_set = dataset.map(
+                intent_tokenize(tokenizer), batched=True
+            )
+            tokenized_set = tokenized_set.remove_columns(
+                ["utterances", "Core Relations"]
+            )
+
     tokenized_set.set_format("torch")
     return tokenized_set
 
 
-def slot_tokenize(tokenizer, slot_vocab, split):
+def test_tokenize(tokenizer):
+    def tokenize(examples):
+        if TASK == "slot":
+            examples["utterances"] = [
+                remove_punct(text) for text in examples["utterances"]
+            ]
+        tokenized_inputs = tokenizer(
+            examples["utterances"], truncation=True, padding=True
+        )
+
+        return tokenized_inputs
+
+    return tokenize
+
+
+def slot_tokenize(tokenizer):
     """Tokenization and aligning labels for slot tagging task"""
 
     def tokenize(examples):
@@ -305,10 +341,6 @@ def slot_tokenize(tokenizer, slot_vocab, split):
         tokenized_inputs = tokenizer(
             examples["utterances"], truncation=True, padding=True
         )
-
-        # if it is the test set, we do not need to do label alignment on word piece
-        if split == "test":
-            return tokenized_inputs
 
         slot_indexes = [
             [slot_vocab.lookup_index(slot) for slot in slot_seq]
@@ -341,6 +373,30 @@ def slot_tokenize(tokenizer, slot_vocab, split):
     return tokenize
 
 
+def intent_tokenize(tokenizer):
+    """Tokenization and aligning labels for slot tagging task"""
+
+    def convert_intent_to_multilabel(intents):
+        multi_labels = [0] * len(intent_vocab)
+        for intent in intents:
+            if intent in intent_vocab.token2idx.keys():
+                multi_labels[intent_vocab.lookup_index(intent)] = 1
+        return multi_labels
+
+    def tokenize(examples):
+        tokenized_inputs = tokenizer(
+            examples["utterances"], truncation=True, padding=True
+        )
+        intent_labels = [
+            convert_intent_to_multilabel(intents)
+            for intents in examples["Core Relations"]
+        ]
+        tokenized_inputs["labels"] = intent_labels
+        return tokenized_inputs
+
+    return tokenize
+
+
 def get_data_loader(split="train"):
     dataset_map = {
         "train": train_set,
@@ -358,6 +414,12 @@ def get_data_loader(split="train"):
 
 
 if __name__ == "__main__":
-    for batch in get_data_loader():
+    for batch in get_data_loader("train"):
+        break
+    print({k: v.shape for k, v in batch.items()})
+    for batch in get_data_loader("dev"):
+        break
+    print({k: v.shape for k, v in batch.items()})
+    for batch in get_data_loader("test"):
         break
     print({k: v.shape for k, v in batch.items()})
