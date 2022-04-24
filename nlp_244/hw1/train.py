@@ -26,9 +26,6 @@ torch.backends.cudnn.deterministic = True
 
 
 def experiment_pipeline(name):
-    # TODO: use the best model for inference the test set
-    # TODO: write the prediction on the test set
-    # TODO: plot the score curve
     print_stage(name)
 
     print_stage("Loading Data")

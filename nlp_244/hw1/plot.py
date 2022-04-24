@@ -6,12 +6,6 @@ SPLIT_COLOR_MAP = {
     "dev": "r",
 }
 
-LINE_STYLE_MAP = {
-    "precision": "--",
-    "recall": ":",
-    "f1": "-",
-}
-
 
 def init_report():
     return {metric: [] for metric in METRICS}
@@ -20,7 +14,6 @@ def init_report():
 def init_fig(title, x_label, y_label, legend=True):
 
     fig, ax = plt.subplots(1, 1, figsize=(15, 5))
-    # ax.set_ylim([0, 100000])
     ax.set_title(title)
     ax.set_xlabel(x_label)
     ax.set_ylabel(y_label)
