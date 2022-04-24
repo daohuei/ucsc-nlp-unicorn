@@ -270,14 +270,18 @@ intent_vocab = Vocab(
 )
 
 train_set, dev_set, test_set = None, None, None
+dev_true = None
 if TASK == "slot":
     train_set, dev_set, test_set = prepare_dataset(
         df_dict["slot"], "IOB Slot tags"
     )
+    dev_true = df_dict["slot"]["dev"]["IOB Slot tags"].tolist()
+
 elif TASK == "intent":
     train_set, dev_set, test_set = prepare_dataset(
         df_dict["intent"], "Core Relations"
     )
+    dev_true = df_dict["slot"]["dev"]["Core Relations"].tolist()
 
 pretrained_tokenizer = None
 if MODEL == "distil_bert":

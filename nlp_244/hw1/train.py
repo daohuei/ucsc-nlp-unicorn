@@ -13,16 +13,20 @@ from model import (
     count_parameters,
 )
 from config import SEED, MODEL, TASK, NAME, DEVICE, NUM_EPOCHS
-from helper import print_stage, epoch_time
-from data import get_data_loader
+from helper import print_stage, epoch_time, write_scores
+from data import get_data_loader, intent_vocab, slot_vocab, dev_true
 from plot import init_report, plot_loss
+from auto_evaluation import f1_score, accuracy_score
 
 torch.manual_seed(SEED)
 torch.cuda.manual_seed(SEED)
 torch.backends.cudnn.deterministic = True
 
 
-def training_pipeline(name):
+def experiment_pipeline(name):
+    # TODO: use the best model for inference the test set
+    # TODO: write the prediction on the test set
+    # TODO: plot the score curve
     print_stage(name)
 
     print_stage("Loading Data")
@@ -54,6 +58,10 @@ def training_pipeline(name):
         num_training_steps=num_training_steps,
     )
 
+    best_dev_predictions = []
+    best_dev_f1 = float("-inf")
+    best_dev_accuracy = None
+
     train_report = init_report()
     dev_report = init_report()
 
@@ -69,6 +77,44 @@ def training_pipeline(name):
 
         epoch_mins, epoch_secs = epoch_time(start_time, end_time)
 
+        # convert output to predictions
+        dev_predictions = []
+        for dev_pred in dev_output:
+            dev_pred = None
+            if TASK == "intent":
+                dev_pred_indexes = torch.where(dev_pred >= 0.5, 1, 0)
+                dev_pred = [
+                    intent_vocab.lookup_token(idx.item())
+                    for idx in dev_pred_indexes
+                ]
+
+            elif TASK == "slot":
+                dev_pred_indexes = dev_pred.argmax(-1)
+                dev_pred = [
+                    slot_vocab.lookup_token(idx.item())
+                    for idx in dev_pred_indexes
+                ]
+
+            assert dev_pred != None
+            dev_predictions.append(dev_pred)
+
+        # calculate f1-score
+        dev_f1 = float("-inf")
+        if TASK == "intent":
+            dev_f1 = f1_score(dev_true, dev_predictions, intent=True)
+        elif TASK == "slot":
+            dev_f1 = f1_score(dev_true, dev_predictions)
+
+        dev_accuracy = accuracy_score(dev_true, dev_predictions)
+
+        if best_dev_f1 < dev_f1:
+            best_dev_f1 = dev_f1
+            best_dev_accuracy = dev_accuracy
+            write_scores(
+                {"f1": best_dev_f1, "accuracy": best_dev_accuracy}, "dev", name
+            )
+            torch.save(model.state_dict(), f"{name}-best-model.pt")
+
         train_report["epoch"].append(epoch)
         train_report["loss"].append(train_loss)
 
@@ -81,6 +127,8 @@ def training_pipeline(name):
         print(f"Epoch: {epoch+1:02} | Time: {epoch_mins}m {epoch_secs}s")
         print(f"\tTrain Loss: {train_loss:.3f}")
         print(f"\tDev Loss: {dev_loss:.3f}")
+        print(f"\tDev F-1: {dev_f1:.3f}")
+        print(f"\tDev Accuracy: {dev_accuracy:.3f}")
 
 
 def train(model, loader, optimizer, lr_scheduler):
@@ -113,7 +161,7 @@ def train(model, loader, optimizer, lr_scheduler):
             # Multi-label should use BCE instead
             loss = bce_criterion(outputs, y.type(torch.float))
         assert loss != None
-        
+
         # Back Propagation
         loss.backward()
 
@@ -174,4 +222,4 @@ def evaluate(model, loader):
 
 
 if __name__ == "__main__":
-    training_pipeline(NAME)
+    experiment_pipeline(NAME)

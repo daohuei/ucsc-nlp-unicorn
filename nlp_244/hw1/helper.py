@@ -23,10 +23,5 @@ def write_predictions(preds, split, name):
 
 
 def write_scores(scores, split, name):
-    report = {}
-    for k in ["1", "2", "l"]:
-        for m in ["precision", "recall", "f1"]:
-            report[f"rouge-{k}-{m}"] = [scores[f"rouge-{k}-{m[0]}"]]
-
-    df = pd.DataFrame(report)
+    df = pd.DataFrame(scores)
     df.to_csv(f"./{name}_{split}_score.csv", index=False)
