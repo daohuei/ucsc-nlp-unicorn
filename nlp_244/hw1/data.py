@@ -1,5 +1,4 @@
 from collections import Counter, OrderedDict
-from lib2to3.pgen2 import token
 
 import pandas as pd
 import numpy as np
@@ -71,7 +70,11 @@ def load_data():
             "dev": val_intent_df,
             "test": test_df,
         },
-        "slot": {"train": train_slot_df, "dev": val_slot_df, "test": test_df,},
+        "slot": {
+            "train": train_slot_df,
+            "dev": val_slot_df,
+            "test": test_df,
+        },
     }
 
 
@@ -248,14 +251,17 @@ def prepare_dataset(df_dict, label_key):
     test_df = df_dict["test"]
 
     train_movie_dataset = Dataset.from_pandas(
-        train_df[["utterances", label_key]], preserve_index=False,
+        train_df[["utterances", label_key]],
+        preserve_index=False,
     )
 
     dev_movie_dataset = Dataset.from_pandas(
-        dev_df[["utterances", label_key]], preserve_index=False,
+        dev_df[["utterances", label_key]],
+        preserve_index=False,
     )
     test_movie_dataset = Dataset.from_pandas(
-        test_df[["utterances"]], preserve_index=False,
+        test_df[["utterances"]],
+        preserve_index=False,
     )
     return (train_movie_dataset, dev_movie_dataset, test_movie_dataset)
 
@@ -296,17 +302,21 @@ data_collator = DataCollatorWithPadding(tokenizer=pretrained_tokenizer)
 def prepare_slot_dataset(dataset, tokenizer, split):
     tokenized_set = None
     if split == "test":
-        tokenized_set = dataset.map(test_tokenize(tokenizer), batched=True)
+        tokenized_set = dataset.map(
+            test_tokenize(tokenizer), batched=True, batch_size=BATCH_SIZE
+        )
         tokenized_set = tokenized_set.remove_columns(["utterances"])
     else:
         if TASK == "slot":
-            tokenized_set = dataset.map(slot_tokenize(tokenizer), batched=True)
+            tokenized_set = dataset.map(
+                slot_tokenize(tokenizer), batched=True, batch_size=BATCH_SIZE
+            )
             tokenized_set = tokenized_set.remove_columns(
                 ["utterances", "IOB Slot tags"]
             )
         elif TASK == "intent":
             tokenized_set = dataset.map(
-                intent_tokenize(tokenizer), batched=True
+                intent_tokenize(tokenizer), batched=True, batch_size=BATCH_SIZE
             )
             tokenized_set = tokenized_set.remove_columns(
                 ["utterances", "Core Relations"]
