@@ -6,6 +6,7 @@ from transformers import (
 )
 
 from data import slot_vocab, intent_vocab
+from config import ADD_LAYER
 
 
 def count_parameters(model):
@@ -31,7 +32,13 @@ class DistilBERTIntentModel(torch.nn.Module):
             "distilbert-base-uncased"
         )
         self.dropout = torch.nn.Dropout(0.5)
-        self.linear = torch.nn.Linear(768, len(intent_vocab))
+
+        if ADD_LAYER:
+            self.linear_1 = torch.nn.Linear(768, 256)
+            self.linear_2 = torch.nn.Linear(256, len(intent_vocab))
+        else:
+            self.linear = torch.nn.Linear(768, len(intent_vocab))
+
         self.sigmoid = torch.nn.Sigmoid()
 
     def forward(self, input_ids, attention_mask):
@@ -39,8 +46,15 @@ class DistilBERTIntentModel(torch.nn.Module):
         cls = self.distil_bert(
             input_ids, attention_mask=attention_mask
         ).last_hidden_state[:, 0, :]
+
         output = self.dropout(cls)
-        output = self.linear(output)
+
+        if ADD_LAYER:
+            output = self.linear_1(output)
+            output = self.linear_2(output)
+        else:
+            output = self.linear(output)
+
         output = self.sigmoid(output)
         return output
 
@@ -61,8 +75,15 @@ class ALBERTIntentModel(torch.nn.Module):
     def __init__(self):
         super(ALBERTIntentModel, self).__init__()
         self.albert = AlbertModel.from_pretrained("albert-base-v2")
+
         self.dropout = torch.nn.Dropout(0.5)
-        self.linear = torch.nn.Linear(768, len(intent_vocab))
+
+        if ADD_LAYER:
+            self.linear_1 = torch.nn.Linear(768, 256)
+            self.linear_2 = torch.nn.Linear(256, len(intent_vocab))
+        else:
+            self.linear = torch.nn.Linear(768, len(intent_vocab))
+
         self.sigmoid = torch.nn.Sigmoid()
 
     def forward(self, input_ids, attention_mask):
@@ -70,7 +91,14 @@ class ALBERTIntentModel(torch.nn.Module):
         cls = self.albert(
             input_ids, attention_mask=attention_mask
         ).last_hidden_state[:, 0, :]
+
         output = self.dropout(cls)
-        output = self.linear(output)
+
+        if ADD_LAYER:
+            output = self.linear_1(output)
+            output = self.linear_2(output)
+        else:
+            output = self.linear(output)
+
         output = self.sigmoid(output)
         return output

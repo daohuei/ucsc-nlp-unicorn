@@ -18,6 +18,7 @@ def epoch_time(start_time, end_time):
 
 
 def write_predictions(preds, split, name):
+    preds = [" ".join(pred) for pred in preds]
     with open(f"./{name}.{split}.pred", "w") as f:
         f.write("\n".join(preds))
 

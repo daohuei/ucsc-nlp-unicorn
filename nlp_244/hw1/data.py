@@ -45,6 +45,13 @@ def load_data():
     balance_intent_df = balance_intent_data(train_intent_df)
     balance_slot_df = balance_slot_data(train_slot_df)
 
+    train_intent_df = balance_intent_df
+    train_slot_df = balance_slot_df
+
+    # # TODO: for testing, to be removed
+    # val_intent_df = balance_intent_df.copy()
+    # val_slot_df = balance_slot_df.copy()
+
     balance_intent_df["Core Relations"] = balance_intent_df[
         "Core Relations"
     ].apply(lambda text: text.split())
@@ -60,15 +67,11 @@ def load_data():
 
     return {
         "intent": {
-            "train": balance_intent_df,
+            "train": train_intent_df,
             "dev": val_intent_df,
             "test": test_df,
         },
-        "slot": {
-            "train": balance_slot_df,
-            "dev": val_slot_df,
-            "test": test_df,
-        },
+        "slot": {"train": train_slot_df, "dev": val_slot_df, "test": test_df,},
     }
 
 
@@ -240,23 +243,19 @@ def balance_slot_data(df):
 
 
 def prepare_dataset(df_dict, label_key):
-    train_df = df_dict["train"].loc[:4]
-    dev_df = train_df.copy()
-    # dev_df = df_dict["dev"]
-    test_df = df_dict["test"].loc[:2]
+    train_df = df_dict["train"]
+    dev_df = df_dict["dev"]
+    test_df = df_dict["test"]
 
     train_movie_dataset = Dataset.from_pandas(
-        train_df[["utterances", label_key]],
-        preserve_index=False,
+        train_df[["utterances", label_key]], preserve_index=False,
     )
 
     dev_movie_dataset = Dataset.from_pandas(
-        dev_df[["utterances", label_key]],
-        preserve_index=False,
+        dev_df[["utterances", label_key]], preserve_index=False,
     )
     test_movie_dataset = Dataset.from_pandas(
-        test_df[["utterances"]],
-        preserve_index=False,
+        test_df[["utterances"]], preserve_index=False,
     )
     return (train_movie_dataset, dev_movie_dataset, test_movie_dataset)
 
@@ -281,7 +280,7 @@ elif TASK == "intent":
     train_set, dev_set, test_set = prepare_dataset(
         df_dict["intent"], "Core Relations"
     )
-    dev_true = df_dict["slot"]["dev"]["Core Relations"].tolist()
+    dev_true = df_dict["intent"]["dev"]["Core Relations"].tolist()
 
 pretrained_tokenizer = None
 if MODEL == "distil_bert":

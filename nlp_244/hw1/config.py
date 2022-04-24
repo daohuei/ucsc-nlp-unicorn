@@ -14,11 +14,17 @@ DEVICE = device
 
 
 # task and model setup
-TASK = "slot"  # slot or intent
+TASK = "intent"  # slot or intent
 MODEL = "distil_bert"  # distil_bert or albert
 
 # Hyperparameters
-BATCH_SIZE = 2
-NUM_EPOCHS = 3
+BATCH_SIZE = 16
+NUM_EPOCHS = 100
+LR = 1e-5  # default: 5e-5
+ADD_LAYER = True
 
-NAME = f"{TASK}_{MODEL}_batch_{BATCH_SIZE}_epoch_{NUM_EPOCHS}"
+NAME = f"{TASK}_{MODEL}_batch_{BATCH_SIZE}_epoch_{NUM_EPOCHS}_LR_{LR}"
+
+if ADD_LAYER:
+    NAME += "_AddLayer"
+

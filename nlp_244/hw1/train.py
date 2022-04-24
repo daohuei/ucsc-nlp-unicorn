@@ -12,11 +12,12 @@ from model import (
     ALBERTSlotModel,
     count_parameters,
 )
-from config import SEED, MODEL, TASK, NAME, DEVICE, NUM_EPOCHS
-from helper import print_stage, epoch_time, write_scores
+from config import SEED, MODEL, TASK, NAME, DEVICE, NUM_EPOCHS, LR
+from helper import print_stage, epoch_time, write_predictions, write_scores
 from data import get_data_loader, intent_vocab, slot_vocab, dev_true
-from plot import init_report, plot_loss
+from plot import init_report, plot_loss, plot_f1, plot_accuracy
 from auto_evaluation import f1_score, accuracy_score
+from inference import inference
 
 torch.manual_seed(SEED)
 torch.cuda.manual_seed(SEED)
@@ -47,7 +48,7 @@ def experiment_pipeline(name):
     model.to(DEVICE)
     print(f"The model has {count_parameters(model):,} trainable parameters")
 
-    optimizer = AdamW(model.parameters(), lr=5e-5)
+    optimizer = AdamW(model.parameters(), lr=LR)
 
     # define the optimizer and learning rate scheduler
     num_training_steps = NUM_EPOCHS * len(train_dataloader)
@@ -79,17 +80,18 @@ def experiment_pipeline(name):
 
         # convert output to predictions
         dev_predictions = []
-        for dev_pred in dev_output:
+        for dev_output_val in dev_output:
             dev_pred = None
             if TASK == "intent":
-                dev_pred_indexes = torch.where(dev_pred >= 0.5, 1, 0)
+                dev_pred_binary = torch.where(dev_output_val >= 0.5, 1, 0)
                 dev_pred = [
-                    intent_vocab.lookup_token(idx.item())
-                    for idx in dev_pred_indexes
+                    intent_vocab.lookup_token(intent_idx)
+                    for intent_idx, val in enumerate(dev_pred_binary)
+                    if val.item()
                 ]
 
             elif TASK == "slot":
-                dev_pred_indexes = dev_pred.argmax(-1)
+                dev_pred_indexes = dev_output_val.argmax(-1)
                 dev_pred = [
                     slot_vocab.lookup_token(idx.item())
                     for idx in dev_pred_indexes
@@ -111,7 +113,9 @@ def experiment_pipeline(name):
             best_dev_f1 = dev_f1
             best_dev_accuracy = dev_accuracy
             write_scores(
-                {"f1": best_dev_f1, "accuracy": best_dev_accuracy}, "dev", name
+                {"f1": [best_dev_f1], "accuracy": [best_dev_accuracy]},
+                "dev",
+                name,
             )
             torch.save(model.state_dict(), f"{name}-best-model.pt")
 
@@ -120,15 +124,23 @@ def experiment_pipeline(name):
 
         dev_report["epoch"].append(epoch)
         dev_report["loss"].append(dev_loss)
+        dev_report["f1"].append(dev_f1)
+        dev_report["accuracy"].append(dev_accuracy)
 
         plot_loss(train_report, "train", False, name)
         plot_loss(dev_report, "dev", False, name)
+        plot_f1(dev_report, "dev", False, name)
+        plot_accuracy(dev_report, "dev", False, name)
 
-        print(f"Epoch: {epoch+1:02} | Time: {epoch_mins}m {epoch_secs}s")
+        print(f"Epoch: {epoch:02} | Time: {epoch_mins}m {epoch_secs}s")
         print(f"\tTrain Loss: {train_loss:.3f}")
         print(f"\tDev Loss: {dev_loss:.3f}")
         print(f"\tDev F-1: {dev_f1:.3f}")
         print(f"\tDev Accuracy: {dev_accuracy:.3f}")
+
+    print_stage("Evaluating Test Set")
+    test_predictions = inference(model, test_dataloader)
+    write_predictions(test_predictions, "test", name)
 
 
 def train(model, loader, optimizer, lr_scheduler):
@@ -195,13 +207,17 @@ def evaluate(model, loader):
             mask = batch["attention_mask"]
 
             # forwarding
-            outputs = None
+            outputs, output_val = None, None
             if TASK == "slot":
                 outputs = model(**batch)
                 output_val = outputs.logits
+                for batch_idx in range(output_val.shape[0]):
+                    output_list.append(output_val[batch_idx, :, :])
             elif TASK == "intent":
                 outputs = model(X, mask)
                 output_val = outputs
+                for batch_idx in range(output_val.shape[0]):
+                    output_list.append(output_val[batch_idx, :])
 
             # calculating loss
             loss = None
@@ -212,9 +228,6 @@ def evaluate(model, loader):
                 # Multi-label should use BCE instead
                 loss = bce_criterion(outputs, y.type(torch.float))
             assert loss != None
-
-            for batch_idx in range(output_val.shape[0]):
-                output_list.append(output_val[batch_idx, :, :])
 
             epoch_loss += loss.item()
 
