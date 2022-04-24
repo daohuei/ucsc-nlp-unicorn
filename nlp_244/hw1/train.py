@@ -1,3 +1,4 @@
+import math
 import time
 
 import torch
@@ -59,7 +60,6 @@ def experiment_pipeline(name):
         num_training_steps=num_training_steps,
     )
 
-    best_dev_predictions = []
     best_dev_f1 = float("-inf")
     best_dev_accuracy = None
 
@@ -100,6 +100,9 @@ def experiment_pipeline(name):
             assert dev_pred != None
             dev_predictions.append(dev_pred)
 
+        for i in range(len(dev_true)):
+            assert len(dev_true[i]) == len(dev_predictions[i])
+
         # calculate f1-score
         dev_f1 = float("-inf")
         if TASK == "intent":
@@ -132,6 +135,7 @@ def experiment_pipeline(name):
         plot_f1(dev_report, "dev", False, name)
         plot_accuracy(dev_report, "dev", False, name)
 
+        print(f"Training {name}")
         print(f"Epoch: {epoch:02} | Time: {epoch_mins}m {epoch_secs}s")
         print(f"\tTrain Loss: {train_loss:.3f}")
         print(f"\tDev Loss: {dev_loss:.3f}")
@@ -157,10 +161,16 @@ def train(model, loader, optimizer, lr_scheduler):
         y = batch["labels"]
         mask = batch["attention_mask"]
 
+        input_batch = {
+            "input_ids": X,
+            "labels": y,
+            "attention_mask": mask,
+        }
+
         # forwarding
         outputs = None
         if TASK == "slot":
-            outputs = model(**batch)
+            outputs = model(**input_batch)
         elif TASK == "intent":
             outputs = model(X, mask)
 
@@ -205,14 +215,32 @@ def evaluate(model, loader):
             X = batch["input_ids"]
             y = batch["labels"]
             mask = batch["attention_mask"]
+            word_ids = batch["word_ids"]
 
+            input_batch = {
+                "input_ids": X,
+                "labels": y,
+                "attention_mask": mask,
+            }
             # forwarding
             outputs, output_val = None, None
             if TASK == "slot":
-                outputs = model(**batch)
+                outputs = model(**input_batch)
                 output_val = outputs.logits
                 for batch_idx in range(output_val.shape[0]):
-                    output_list.append(output_val[batch_idx, :, :])
+                    word_id = word_ids[batch_idx, :]
+                    correct_output_idx = []
+                    prev_w_id = None
+                    for idx, w_id in enumerate(word_id):
+                        if w_id.item() == prev_w_id:
+                            continue
+                        prev_w_id = w_id.item()
+                        if math.isnan(w_id.item()):
+                            continue
+                        correct_output_idx.append(idx)
+                    output_list.append(
+                        output_val[batch_idx, :, :][correct_output_idx]
+                    )
             elif TASK == "intent":
                 outputs = model(X, mask)
                 output_val = outputs

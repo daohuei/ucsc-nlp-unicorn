@@ -1,3 +1,4 @@
+import math
 import torch
 from tqdm.auto import tqdm
 
@@ -15,13 +16,31 @@ def inference(model, loader):
             batch = {k: v.to(DEVICE) for k, v in batch.items()}
             X = batch["input_ids"]
             mask = batch["attention_mask"]
+            word_ids = batch["word_ids"]
+
+            input_batch = {
+                "input_ids": X,
+                "attention_mask": mask,
+            }
 
             outputs, output_val = None, None
             if TASK == "slot":
-                outputs = model(**batch)
+                outputs = model(**input_batch)
                 output_val = outputs.logits
                 for batch_idx in range(output_val.shape[0]):
-                    output_list.append(output_val[batch_idx, :, :])
+                    word_id = word_ids[batch_idx, :]
+                    correct_output_idx = []
+                    prev_w_id = None
+                    for idx, w_id in enumerate(word_id):
+                        if w_id.item() == prev_w_id:
+                            continue
+                        prev_w_id = w_id.item()
+                        if math.isnan(w_id.item()):
+                            continue
+                        correct_output_idx.append(idx)
+                    output_list.append(
+                        output_val[batch_idx, :, :][correct_output_idx]
+                    )
             elif TASK == "intent":
                 outputs = model(X, mask)
                 output_val = outputs

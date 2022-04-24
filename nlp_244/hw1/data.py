@@ -17,13 +17,13 @@ np.random.seed(SEED)
 
 def remove_punct(utterance):
     result = (
-        utterance.replace("-", "")
+        utterance.replace(" - ", " # ")
+        .replace("-", "")
         .replace("'s", "")
-        .replace(":", " ")
-        .replace("'d", "")
+        .replace(":", "")
+        .replace("'d", "d")
         .replace(".", "")
-        .replace(" a ", " ")
-        .replace("'m", "")
+        .replace("'m", "m")
         .replace("'t", "t")
     )
     return result
@@ -47,7 +47,7 @@ def load_data():
     train_intent_df = balance_intent_df
     train_slot_df = balance_slot_df
 
-    # # TODO: for testing, to be removed
+    # TODO: for testing model/eval correctness only, remove for real training
     # val_intent_df = balance_intent_df.copy()
     # val_slot_df = balance_slot_df.copy()
 
@@ -335,7 +335,13 @@ def test_tokenize(tokenizer):
         tokenized_inputs = tokenizer(
             examples["utterances"], truncation=True, padding=True
         )
-
+        all_word_ids = []
+        for i in range(len(examples["utterances"])):
+            word_ids = tokenized_inputs.word_ids(
+                batch_index=i
+            )  # Map tokens to their respective word.
+            all_word_ids.append(word_ids)
+        tokenized_inputs["word_ids"] = all_word_ids
         return tokenized_inputs
 
     return tokenize
@@ -362,10 +368,12 @@ def slot_tokenize(tokenizer):
 
         # aligning the label to wordpiece tokens
         labels = []
+        all_word_ids = []
         for i, label in enumerate(slot_indexes):
             word_ids = tokenized_inputs.word_ids(
                 batch_index=i
             )  # Map tokens to their respective word.
+            all_word_ids.append(word_ids)
             previous_word_idx = None
             label_ids = []
             for word_idx in word_ids:  # Set the special tokens to -100.
@@ -381,6 +389,7 @@ def slot_tokenize(tokenizer):
             labels.append(label_ids)
 
         tokenized_inputs["labels"] = labels
+        tokenized_inputs["word_ids"] = all_word_ids
         return tokenized_inputs
 
     return tokenize
