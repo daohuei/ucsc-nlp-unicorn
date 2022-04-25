@@ -391,7 +391,7 @@ def opener(filename):
         ]
         intents = []
         # will split into slots and intents
-        for uncleaned_relation in uncleaned_relations:
+        for index, uncleaned_relation in enumerate(uncleaned_relations):
             for i in range(len(uncleaned_relation)):
                 if "\t" in uncleaned_relation[i]:
                     intent = []
@@ -401,6 +401,8 @@ def opener(filename):
                     if i + 1 < len(uncleaned_relation):
                         intent += uncleaned_relation[i + 1 :]
                     intents.append(intent)
+                    uncleaned_relations[index] = uncleaned_relation[: i + 1]
+                    break
         relations = uncleaned_relations
         return relations, intents
 
