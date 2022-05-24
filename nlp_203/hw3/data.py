@@ -42,8 +42,8 @@ def load_covid_data(split="dev"):
 
     data_dict = load_json_file_to_dict(COVID_PATH[split])
     dataset = Dataset.from_dict(reconstruct_data(data_dict))
-    return Dataset.from_dict(dataset[:5])
-    # return dataset
+    # return Dataset.from_dict(dataset[:1])
+    return dataset
 
 
 # load the tokenizer
