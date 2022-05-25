@@ -1,5 +1,3 @@
-import os
-
 from transformers import default_data_collator
 from transformers import (
     AutoModelForQuestionAnswering,
@@ -7,13 +5,23 @@ from transformers import (
     Trainer,
 )
 
-from config import MODEL, NAME, BATCH_SIZE, DEVICE, IS_FINE_TUNE
+from config import (
+    MODEL,
+    NAME,
+    BATCH_SIZE,
+    DEVICE,
+    IS_FINE_TUNE,
+    IS_ADAPTER,
+    EPOCHS,
+    ADAPTER,
+)
 from data import tokenizer, load_covid_data, prepare_dataset
 from inference import inference, write_dict_to_json
 from helper import print_stage
+from model import QuestionAnsweringAdapterTrainer
 
 
-def train(name, fine_tune=False):
+def train(name, fine_tune=False, adapter=False):
     print_stage("Loading Data")
     dev_dataset = load_covid_data(split="dev")
     test_dataset = load_covid_data(split="test")
@@ -40,28 +48,46 @@ def train(name, fine_tune=False):
     args = TrainingArguments(
         name,
         evaluation_strategy="epoch",
+        save_strategy="epoch",
         learning_rate=2e-5,
         per_device_train_batch_size=BATCH_SIZE,
         per_device_eval_batch_size=BATCH_SIZE,
-        num_train_epochs=10,
+        num_train_epochs=EPOCHS,
         weight_decay=0.01,
         dataloader_num_workers=0,
         local_rank=-1,
+        load_best_model_at_end=True,
         # resume_from_checkpoint=f"{name}/checkpoint-19000",
     )
 
-    trainer = Trainer(
-        model,
-        args,
-        train_dataset=tokenized_train_dataset,
-        eval_dataset=tokenized_dev_dataset,
-        data_collator=data_collator,
-        tokenizer=tokenizer,
-    )
+    trainer = None
+    if adapter:
+        # Setup adapters
+        adapter_name = model.load_adapter(ADAPTER)
+        model.train_adapter(adapter_name)
+        model.set_active_adapters(adapter_name)
+        trainer = QuestionAnsweringAdapterTrainer(
+            model,
+            args,
+            train_dataset=tokenized_train_dataset,
+            eval_dataset=tokenized_dev_dataset,
+            data_collator=data_collator,
+            tokenizer=tokenizer,
+        )
+    else:
+        trainer = Trainer(
+            model,
+            args,
+            train_dataset=tokenized_train_dataset,
+            eval_dataset=tokenized_dev_dataset,
+            data_collator=data_collator,
+            tokenizer=tokenizer,
+        )
     if fine_tune:
         print_stage("Fine-tuning")
         trainer.train()
 
+    trainer.save_model(name)
     print_stage("Inferencing on Dev set")
     dev_features = prepare_dataset(dev_dataset, prepare_type="eval")
     dev_pred_dict = inference(trainer, dev_features, dev_dataset)
@@ -74,4 +100,4 @@ def train(name, fine_tune=False):
 
 
 if __name__ == "__main__":
-    train(NAME, fine_tune=IS_FINE_TUNE)
+    train(NAME, fine_tune=IS_FINE_TUNE, adapter=IS_ADAPTER)

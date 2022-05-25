@@ -8,7 +8,7 @@ from data import tokenizer
 
 # postprocessing on predictions
 def postprocess_qa_predictions(
-    examples, features, raw_predictions, n_best_size=20, max_answer_length=30
+    examples, features, raw_predictions, n_best_size=100, max_answer_length=100
 ):
     all_start_logits, all_end_logits = raw_predictions
     # Build a map example to its corresponding features.
@@ -100,12 +100,13 @@ def postprocess_qa_predictions(
             best_answer = {"text": "", "score": 0.0}
 
         # Let's pick our final answer: the best one or the null answer (only for squad_v2)
-        answer = (
-            best_answer["text"]
-            if best_answer["score"] > min_null_score
-            else ""
-        )
-        predictions[example["id"]] = answer
+        # answer = (
+        #     best_answer["text"]
+        #     if best_answer["score"] > min_null_score
+        #     else ""
+        # )
+        # predictions[example["id"]] = answer
+        predictions[example["id"]] = best_answer["text"]
 
     return predictions
 
@@ -113,6 +114,9 @@ def postprocess_qa_predictions(
 def inference(trainer, features, dataset):
     # inference on val set
     raw_predictions = trainer.predict(features)
+    features.set_format(
+        type=features.format["type"], columns=list(features.features.keys()),
+    )
     # postprocessing
     final_predictions = postprocess_qa_predictions(
         dataset, features, raw_predictions.predictions

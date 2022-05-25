@@ -39,7 +39,7 @@ def choose_free_device():
     if torch.cuda.is_available():
         free_gpu_id = get_free_gpu()
         print(f"using GPU id: {free_gpu_id}")
-        torch.cuda.set_device(0)
+        # torch.cuda.set_device(0)
 
     return free_gpu_id
 
@@ -52,4 +52,4 @@ def get_device():
 
 if __name__ == "__main__":
     free_gpu_id = get_free_gpu()
-    print(free_gpu_id + 1)
+    print(free_gpu_id)
